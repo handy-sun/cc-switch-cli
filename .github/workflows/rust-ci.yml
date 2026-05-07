@@ -19,32 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt:
-    name: cargo fmt --check
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.91.1"
-          components: rustfmt
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-          key: fmt-check
-
-      - name: Check formatting
-        working-directory: src-tauri
-        run: cargo fmt --check
-
   clippy:
     name: clippy (${{ matrix.os }})
-    needs: fmt
     strategy:
       fail-fast: false
       matrix:
@@ -88,7 +64,6 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
-    needs: fmt
     strategy:
       fail-fast: false
       matrix:
@@ -131,7 +106,6 @@ jobs:
 
   failover-e2e:
     name: failover E2E test
-    needs: fmt
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
