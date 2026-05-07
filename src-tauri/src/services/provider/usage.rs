@@ -279,6 +279,14 @@ impl ProviderService {
                     )
                 })
                 .map(|s| s.to_string()),
+            AppType::Hermes => {
+                // TODO: Implement Hermes API key extraction in Tier 2
+                Err(AppError::localized(
+                    "provider.hermes.api_key.missing",
+                    "Hermes API Key 提取尚未实现",
+                    "Hermes API key extraction not yet implemented",
+                ))
+            }
         }
     }
 
@@ -362,6 +370,14 @@ impl ProviderService {
                 .and_then(|v| v.as_str())
                 .unwrap_or_default()
                 .to_string()),
+            AppType::Hermes => {
+                // TODO: Implement Hermes base URL extraction in Tier 2
+                Err(AppError::localized(
+                    "provider.hermes.base_url.missing",
+                    "Hermes Base URL 提取尚未实现",
+                    "Hermes base URL extraction not yet implemented",
+                ))
+            }
         }
     }
 

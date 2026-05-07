@@ -164,6 +164,9 @@ impl McpService {
                 mcp::sync_single_server_to_opencode(cfg, &server.id, &server.server)?;
             }
             AppType::OpenClaw => {}
+            AppType::Hermes => {
+                mcp::sync_single_server_to_hermes(cfg, &server.id, &server.server)?;
+            }
         }
         Ok(())
     }
@@ -188,6 +191,7 @@ impl McpService {
             AppType::Gemini => mcp::remove_server_from_gemini(id)?,
             AppType::OpenCode => mcp::remove_server_from_opencode(id)?,
             AppType::OpenClaw => {}
+            AppType::Hermes => mcp::remove_server_from_hermes(id)?,
         }
         Ok(())
     }

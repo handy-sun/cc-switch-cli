@@ -29,6 +29,9 @@ pub(super) enum LiveSnapshot {
     OpenClaw {
         config_source: Option<String>,
     },
+    Hermes {
+        config: Option<Value>,
+    },
 }
 
 impl LiveSnapshot {
@@ -96,6 +99,10 @@ impl LiveSnapshot {
                     delete_file(&path)?;
                 }
             }
+            LiveSnapshot::Hermes { config } => {
+                // TODO: Implement Hermes live snapshot restore in Tier 2
+                let _ = config;
+            }
         }
         Ok(())
     }
@@ -158,6 +165,10 @@ pub(super) fn capture_live_snapshot(app_type: &AppType) -> Result<LiveSnapshot, 
         AppType::OpenClaw => {
             let config_source = crate::openclaw_config::read_openclaw_config_source()?;
             Ok(LiveSnapshot::OpenClaw { config_source })
+        }
+        AppType::Hermes => {
+            // TODO: Implement Hermes live snapshot capture in Tier 2
+            Ok(LiveSnapshot::Hermes { config: None })
         }
     }
 }

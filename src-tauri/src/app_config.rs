@@ -234,6 +234,8 @@ pub struct McpRoot {
     pub opencode: McpConfig,
     #[serde(default, skip_serializing_if = "McpConfig::is_empty")]
     pub openclaw: McpConfig,
+    #[serde(default, skip_serializing_if = "McpConfig::is_empty")]
+    pub hermes: McpConfig,
 }
 
 impl Default for McpRoot {
@@ -247,6 +249,7 @@ impl Default for McpRoot {
             gemini: McpConfig::default(),
             opencode: McpConfig::default(),
             openclaw: McpConfig::default(),
+            hermes: McpConfig::default(),
         }
     }
 }
@@ -612,6 +615,7 @@ impl MultiAppConfig {
             AppType::Gemini => &self.mcp.gemini,
             AppType::OpenCode => &self.mcp.opencode,
             AppType::OpenClaw => &self.mcp.openclaw,
+            AppType::Hermes => &self.mcp.hermes,
         }
     }
 
@@ -623,6 +627,7 @@ impl MultiAppConfig {
             AppType::Gemini => &mut self.mcp.gemini,
             AppType::OpenCode => &mut self.mcp.opencode,
             AppType::OpenClaw => &mut self.mcp.openclaw,
+            AppType::Hermes => &mut self.mcp.hermes,
         }
     }
 
@@ -740,6 +745,7 @@ impl MultiAppConfig {
             AppType::Gemini => &mut config.prompts.gemini.prompts,
             AppType::OpenCode => &mut config.prompts.opencode.prompts,
             AppType::OpenClaw => &mut config.prompts.openclaw.prompts,
+            AppType::Hermes => &mut config.prompts.hermes.prompts,
         };
 
         prompts.insert(id, prompt);
@@ -773,6 +779,7 @@ impl MultiAppConfig {
             AppType::Codex,
             AppType::Gemini,
             AppType::OpenCode,
+            AppType::Hermes,
         ] {
             let old_servers = match app {
                 AppType::Claude => &self.mcp.claude.servers,
@@ -780,6 +787,7 @@ impl MultiAppConfig {
                 AppType::Gemini => &self.mcp.gemini.servers,
                 AppType::OpenCode => &self.mcp.opencode.servers,
                 AppType::OpenClaw => continue,
+                AppType::Hermes => &self.mcp.hermes.servers,
             };
 
             for (id, entry) in old_servers {

@@ -645,6 +645,10 @@ impl ProviderService {
                 }
                 state.save()?;
             }
+            AppType::Hermes => {
+                // TODO: Implement Hermes config reading in Tier 2
+                // Hermes is additive mode; should read from hermes_config and update DB snapshot
+            }
         }
         Ok(())
     }
@@ -701,6 +705,7 @@ impl ProviderService {
                 old_snippet,
             ),
             AppType::OpenCode | AppType::OpenClaw => Ok(()),
+            AppType::Hermes => Ok(()),
         };
 
         match result {
@@ -1346,6 +1351,7 @@ impl ProviderService {
             }
             AppType::OpenCode => unreachable!("additive mode apps are handled earlier"),
             AppType::OpenClaw => unreachable!("additive mode apps are handled earlier"),
+            AppType::Hermes => unreachable!("additive mode apps are handled earlier"),
         };
 
         let mut provider = Provider::with_id(
@@ -1453,6 +1459,10 @@ impl ProviderService {
                     ));
                 }
                 crate::openclaw_config::read_openclaw_config()
+            }
+            AppType::Hermes => {
+                // TODO: Implement Hermes config reading in Tier 2
+                json!({})
             }
         }
     }
@@ -1757,6 +1767,7 @@ impl ProviderService {
                 )?,
                 AppType::OpenCode => unreachable!("additive mode handled above"),
                 AppType::OpenClaw => unreachable!("additive mode handled above"),
+                AppType::Hermes => unreachable!("additive mode handled above"),
             };
 
             let action = PostCommitAction {
@@ -1843,6 +1854,10 @@ impl ProviderService {
                     crate::openclaw_config::set_typed_provider(&provider.id, &config).map(|_| ());
 
                 write_result.map_err(Self::normalize_openclaw_live_write_error)
+            }
+            AppType::Hermes => {
+                // TODO: Implement Hermes live write in Tier 2
+                Ok(())
             }
         }
     }
@@ -2057,6 +2072,9 @@ impl ProviderService {
             AppType::OpenClaw => Err(AppError::Config(
                 "OpenClaw does not support proxy takeover backups".into(),
             )),
+            AppType::Hermes => Err(AppError::Config(
+                "Hermes does not support proxy takeover backups".into(),
+            )),
         }
     }
 
@@ -2141,6 +2159,9 @@ impl ProviderService {
             AppType::OpenClaw => {
                 let config = Self::parse_openclaw_provider_settings(&provider.settings_config)?;
                 Self::validate_openclaw_provider_models(&provider.id, &config)?;
+            }
+            AppType::Hermes => {
+                // TODO: Implement Hermes provider validation in Tier 2
             }
         }
 
@@ -2296,6 +2317,9 @@ impl ProviderService {
                 let _ = provider_snapshot;
             }
             AppType::OpenClaw => {
+                let _ = provider_snapshot;
+            }
+            AppType::Hermes => {
                 let _ = provider_snapshot;
             }
         }
