@@ -395,6 +395,7 @@ mod tests {
             gemini: true,
             opencode: true,
             openclaw: true,
+            hermes: false,
         })
         .expect("save visible apps");
         let mut app = App::new(Some(AppType::Claude));
@@ -419,6 +420,7 @@ mod tests {
             gemini: true,
             opencode: true,
             openclaw: true,
+            hermes: false,
         })
         .expect("save visible apps");
         let mut app = App::new(Some(AppType::Gemini));
@@ -459,6 +461,7 @@ mod tests {
             gemini: false,
             opencode: true,
             openclaw: true,
+            hermes: false,
         })
         .expect("save visible apps");
 
@@ -481,6 +484,7 @@ mod tests {
             gemini: false,
             opencode: false,
             openclaw: false,
+            hermes: false,
         })
         .expect("save visible apps");
 
@@ -507,6 +511,7 @@ mod tests {
             gemini: false,
             opencode: false,
             openclaw: true,
+            hermes: false,
         })
         .expect("save visible apps");
 
@@ -529,6 +534,7 @@ mod tests {
             gemini: false,
             opencode: false,
             openclaw: false,
+            hermes: false,
         })
         .expect("save visible apps");
 
@@ -7195,6 +7201,7 @@ mod tests {
             gemini: false,
             opencode: false,
             openclaw: false,
+            hermes: false,
         })
         .expect("save visible apps");
 
