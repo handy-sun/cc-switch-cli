@@ -165,7 +165,7 @@ impl McpService {
             }
             AppType::OpenClaw => {}
             AppType::Hermes => {
-                mcp::sync_single_server_to_hermes(cfg, &server.id, &server.server)?;
+                // TODO: Implement Hermes MCP sync in Tier 2
             }
         }
         Ok(())
@@ -191,7 +191,9 @@ impl McpService {
             AppType::Gemini => mcp::remove_server_from_gemini(id)?,
             AppType::OpenCode => mcp::remove_server_from_opencode(id)?,
             AppType::OpenClaw => {}
-            AppType::Hermes => mcp::remove_server_from_hermes(id)?,
+            AppType::Hermes => {
+                // TODO: Implement Hermes MCP remove in Tier 2
+            }
         }
         Ok(())
     }

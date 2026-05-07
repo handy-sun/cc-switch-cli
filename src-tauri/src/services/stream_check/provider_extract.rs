@@ -38,6 +38,7 @@ impl StreamCheckService {
                 .and_then(|model| model.get("id").and_then(|value| value.as_str()))
                 .map(str::to_string)
                 .unwrap_or_else(|| config.codex_model.clone()),
+            AppType::Hermes => config.codex_model.clone(), // TODO: Hermes model extraction in Tier 2
         }
     }
 
@@ -175,6 +176,10 @@ impl StreamCheckService {
                 .unwrap_or_default()
                 .trim_end_matches('/')
                 .to_string()),
+            AppType::Hermes => {
+                // TODO: Implement Hermes base URL extraction in Tier 2
+                Ok("http://localhost:11434".to_string())
+            }
         }
     }
 
@@ -230,6 +235,14 @@ impl StreamCheckService {
                         "API key is missing",
                     )
                 }),
+            AppType::Hermes => {
+                // TODO: Implement Hermes auth extraction in Tier 2
+                Err(AppError::localized(
+                    "provider.hermes.api_key.missing",
+                    "Hermes API Key 提取尚未实现",
+                    "Hermes API key extraction not yet implemented",
+                ))
+            }
         }
     }
 

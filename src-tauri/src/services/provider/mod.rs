@@ -1462,7 +1462,7 @@ impl ProviderService {
             }
             AppType::Hermes => {
                 // TODO: Implement Hermes config reading in Tier 2
-                json!({})
+                Ok(json!({}))
             }
         }
     }
