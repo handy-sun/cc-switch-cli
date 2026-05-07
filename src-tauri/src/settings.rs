@@ -645,12 +645,8 @@ pub fn set_current_provider(app_type: &AppType, id: Option<&str>) -> Result<(), 
         AppType::Codex => settings.current_provider_codex = id.map(|value| value.to_string()),
         AppType::Gemini => settings.current_provider_gemini = id.map(|value| value.to_string()),
         AppType::OpenCode => settings.current_provider_opencode = id.map(|value| value.to_string()),
-        AppType::OpenClaw => {
-            settings.current_provider_openclaw = id.map(|value| value.to_string())
-        }
-        AppType::Hermes => {
-            settings.current_provider_hermes = id.map(|value| value.to_string())
-        }
+        AppType::OpenClaw => settings.current_provider_openclaw = id.map(|value| value.to_string()),
+        AppType::Hermes => settings.current_provider_hermes = id.map(|value| value.to_string()),
     }
 
     update_settings(settings)

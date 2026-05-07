@@ -378,7 +378,11 @@ pub(super) fn validate_common_config_snippet(
     }
 
     match app_type {
-        AppType::Claude | AppType::Gemini | AppType::OpenCode | AppType::OpenClaw | AppType::Hermes => {
+        AppType::Claude
+        | AppType::Gemini
+        | AppType::OpenCode
+        | AppType::OpenClaw
+        | AppType::Hermes => {
             parse_json_object_snippet(app_type, snippet, false)?;
         }
         AppType::Codex => {

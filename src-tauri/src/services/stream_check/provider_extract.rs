@@ -38,7 +38,13 @@ impl StreamCheckService {
                 .and_then(|model| model.get("id").and_then(|value| value.as_str()))
                 .map(str::to_string)
                 .unwrap_or_else(|| config.codex_model.clone()),
-            AppType::Hermes => config.codex_model.clone(), // TODO: Hermes model extraction in Tier 2
+            AppType::Hermes => provider
+                .settings_config
+                .get("model")
+                .and_then(|m| m.get("default"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .unwrap_or_else(|| config.codex_model.clone()),
         }
     }
 
@@ -176,10 +182,13 @@ impl StreamCheckService {
                 .unwrap_or_default()
                 .trim_end_matches('/')
                 .to_string()),
-            AppType::Hermes => {
-                // TODO: Implement Hermes base URL extraction in Tier 2
-                Ok("http://localhost:11434".to_string())
-            }
+            AppType::Hermes => Ok(provider
+                .settings_config
+                .get("base_url")
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
+                .trim_end_matches('/')
+                .to_string()),
         }
     }
 
@@ -235,14 +244,19 @@ impl StreamCheckService {
                         "API key is missing",
                     )
                 }),
-            AppType::Hermes => {
-                // TODO: Implement Hermes auth extraction in Tier 2
-                Err(AppError::localized(
-                    "provider.hermes.api_key.missing",
-                    "Hermes API Key 提取尚未实现",
-                    "Hermes API key extraction not yet implemented",
-                ))
-            }
+            AppType::Hermes => provider
+                .settings_config
+                .get("api_key")
+                .and_then(|value| value.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|key| AuthInfo::new(key.to_string(), AuthStrategy::Bearer))
+                .ok_or_else(|| {
+                    AppError::localized(
+                        "provider.hermes.api_key.missing",
+                        "缺少 API Key",
+                        "API key is missing",
+                    )
+                }),
         }
     }
 

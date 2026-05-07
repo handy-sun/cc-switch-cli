@@ -416,7 +416,10 @@ impl ProviderAddFormState {
         if snippet.is_empty() {
             return Ok(provider_value);
         }
-        if matches!(self.app_type, AppType::OpenCode | AppType::OpenClaw | AppType::Hermes) {
+        if matches!(
+            self.app_type,
+            AppType::OpenCode | AppType::OpenClaw | AppType::Hermes
+        ) {
             return Ok(provider_value);
         }
 

@@ -308,7 +308,10 @@ impl AppType {
     }
 
     pub fn is_additive_mode(&self) -> bool {
-        matches!(self, AppType::OpenCode | AppType::OpenClaw | AppType::Hermes)
+        matches!(
+            self,
+            AppType::OpenCode | AppType::OpenClaw | AppType::Hermes
+        )
     }
 
     pub fn all() -> impl Iterator<Item = AppType> {

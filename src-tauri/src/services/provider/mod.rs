@@ -646,8 +646,23 @@ impl ProviderService {
                 state.save()?;
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes config reading in Tier 2
-                // Hermes is additive mode; should read from hermes_config and update DB snapshot
+                let providers = crate::hermes_config::get_providers()?;
+                let live_after = providers.get(provider_id).cloned().unwrap_or_else(|| {
+                    log::warn!(
+                        "Hermes live config missing provider '{provider_id}', using empty config"
+                    );
+                    serde_json::Value::Object(serde_json::Map::new())
+                });
+
+                {
+                    let mut guard = state.config.write().map_err(AppError::from)?;
+                    if let Some(manager) = guard.get_manager_mut(app_type) {
+                        if let Some(target) = manager.providers.get_mut(provider_id) {
+                            target.settings_config = live_after;
+                        }
+                    }
+                }
+                state.save()?;
             }
         }
         Ok(())
@@ -1461,8 +1476,8 @@ impl ProviderService {
                 crate::openclaw_config::read_openclaw_config()
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes config reading in Tier 2
-                Ok(json!({}))
+                let yaml = crate::hermes_config::read_hermes_config()?;
+                crate::hermes_config::yaml_to_json(&yaml)
             }
         }
     }
@@ -1856,8 +1871,8 @@ impl ProviderService {
                 write_result.map_err(Self::normalize_openclaw_live_write_error)
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes live write in Tier 2
-                Ok(())
+                crate::hermes_config::set_provider(&provider.id, provider.settings_config.clone())
+                    .map(|_| ())
             }
         }
     }
@@ -2161,7 +2176,14 @@ impl ProviderService {
                 Self::validate_openclaw_provider_models(&provider.id, &config)?;
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes provider validation in Tier 2
+                // Hermes uses flexible YAML config; basic check that settings is an object
+                if !provider.settings_config.is_object() {
+                    return Err(AppError::localized(
+                        "provider.hermes.settings.not_object",
+                        "Hermes 供应商配置必须是 JSON 对象",
+                        "Hermes provider configuration must be a JSON object",
+                    ));
+                }
             }
         }
 

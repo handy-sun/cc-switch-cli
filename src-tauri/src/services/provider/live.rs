@@ -100,8 +100,16 @@ impl LiveSnapshot {
                 }
             }
             LiveSnapshot::Hermes { config } => {
-                // TODO: Implement Hermes live snapshot restore in Tier 2
-                let _ = config;
+                let path = crate::hermes_config::get_hermes_config_path();
+                if let Some(value) = config {
+                    let yaml_value = crate::hermes_config::json_to_yaml(&value)?;
+                    let yaml_str = serde_yaml::to_string(&yaml_value).map_err(|e| {
+                        AppError::Config(format!("Failed to serialize Hermes config: {e}"))
+                    })?;
+                    crate::config::atomic_write(&path, yaml_str.as_bytes())?;
+                } else if path.exists() {
+                    crate::config::delete_file(&path)?;
+                }
             }
         }
         Ok(())
@@ -167,8 +175,14 @@ pub(super) fn capture_live_snapshot(app_type: &AppType) -> Result<LiveSnapshot, 
             Ok(LiveSnapshot::OpenClaw { config_source })
         }
         AppType::Hermes => {
-            // TODO: Implement Hermes live snapshot capture in Tier 2
-            Ok(LiveSnapshot::Hermes { config: None })
+            let path = crate::hermes_config::get_hermes_config_path();
+            let config = if path.exists() {
+                let yaml = crate::hermes_config::read_hermes_config()?;
+                Some(crate::hermes_config::yaml_to_json(&yaml)?)
+            } else {
+                None
+            };
+            Ok(LiveSnapshot::Hermes { config })
         }
     }
 }

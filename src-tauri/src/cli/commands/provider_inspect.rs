@@ -357,7 +357,10 @@ fn model_fetch_target(
         }),
         AppType::Hermes => {
             // TODO: Implement Hermes model fetch in Tier 2
-            Err(AppError::Message(format!("Hermes model fetch not yet implemented for provider '{}'", provider.id)))
+            Err(AppError::Message(format!(
+                "Hermes model fetch not yet implemented for provider '{}'",
+                provider.id
+            )))
         }
     }
 }
