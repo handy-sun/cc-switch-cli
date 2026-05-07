@@ -86,6 +86,7 @@ pub fn prompt_settings_config_for_add(
         (AppType::Gemini, _) => prompt_gemini_config(None),
         (AppType::OpenCode, _) => Ok(json!({})),
         (AppType::OpenClaw, _) => Ok(json!({})),
+        (AppType::Hermes, _) => Ok(json!({})),
     }
 }
 
