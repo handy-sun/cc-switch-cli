@@ -2,7 +2,7 @@ name: Rust CI
 
 on:
   push:
-    branches: [main, "feat*"]
+    branches: [main, "feat/**"]
     paths:
       - "src-tauri/**"
       - ".github/workflows/rust-ci.yml"
