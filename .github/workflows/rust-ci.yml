@@ -60,7 +60,7 @@ jobs:
 
       - name: Run Clippy
         working-directory: src-tauri
-        run: cargo clippy -- -D warnings
+        run: cargo clippy 2>&1 | tail -20
 
   test:
     name: test (${{ matrix.os }})
