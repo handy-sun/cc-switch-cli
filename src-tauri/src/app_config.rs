@@ -680,6 +680,7 @@ impl MultiAppConfig {
             AppType::Gemini,
             AppType::OpenCode,
             AppType::OpenClaw,
+            AppType::Hermes,
         ] {
             // 复用已有的单应用导入逻辑
             if Self::auto_import_prompt_if_exists(self, app)? {

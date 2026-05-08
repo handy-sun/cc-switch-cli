@@ -391,6 +391,7 @@ impl SkillService {
             AppType::Codex,
             AppType::Gemini,
             AppType::OpenCode,
+            AppType::Hermes,
         ]
         .into_iter()
     }
@@ -952,6 +953,7 @@ impl SkillService {
             AppType::Codex,
             AppType::Gemini,
             AppType::OpenCode,
+            AppType::Hermes,
         ] {
             if let Err(e) = Self::remove_from_app(&dir, &app) {
                 log::warn!("从 {app:?} 删除 Skill {dir} 失败: {e}");
