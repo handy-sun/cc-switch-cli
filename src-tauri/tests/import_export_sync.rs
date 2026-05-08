@@ -1416,11 +1416,18 @@ fn import_openclaw_live_config_preserves_unrelated_root_sections_and_source_text
         "import should not rewrite unrelated OpenClaw document sections or formatting"
     );
 
-    let guard = state.config.read().expect("read config after import");
-    let manager = guard
-        .get_manager(&AppType::OpenClaw)
-        .expect("openclaw manager after import");
-    assert!(manager.providers.contains_key("openai"));
+    let openai_provider = state
+        .db
+        .get_provider_by_id("openai", "openclaw")
+        .expect("query openai provider from db")
+        .expect("openai provider should be imported");
+    assert_eq!(
+        openai_provider
+            .settings_config
+            .get("apiKey")
+            .and_then(|v| v.as_str()),
+        Some("sk-openai"),
+    );
 }
 
 #[test]
@@ -1480,13 +1487,35 @@ fn import_openclaw_live_config_skips_modeless_default_provider_without_rewriting
         "import should not rewrite the OpenClaw source document while skipping modeless providers"
     );
 
-    let guard = state.config.read().expect("read config after import");
-    let manager = guard
-        .get_manager(&AppType::OpenClaw)
-        .expect("openclaw manager after import");
-    assert!(!manager.providers.contains_key("empty"));
-    assert!(manager.providers.contains_key("openai"));
-    assert_eq!(manager.providers.len(), 1);
+    // empty provider has no models, so it should be skipped by import
+    let empty_provider = state
+        .db
+        .get_provider_by_id("empty", "openclaw")
+        .expect("query empty provider from db");
+    assert!(
+        empty_provider.is_none(),
+        "modeless provider should not be imported"
+    );
+
+    // openai provider has models, so it should be imported
+    let openai_provider = state
+        .db
+        .get_provider_by_id("openai", "openclaw")
+        .expect("query openai provider from db")
+        .expect("openai provider should be imported");
+    assert_eq!(
+        openai_provider
+            .settings_config
+            .get("apiKey")
+            .and_then(|v| v.as_str()),
+        Some("sk-openai"),
+    );
+
+    let all_ids = state
+        .db
+        .get_provider_ids("openclaw")
+        .expect("get all openclaw provider ids");
+    assert_eq!(all_ids.len(), 1, "only openai should be imported");
 }
 
 #[test]
