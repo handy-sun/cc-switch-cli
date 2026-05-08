@@ -195,11 +195,15 @@ impl ProviderAddFormState {
                 fields.push(ProviderAddField::OpenClawModels);
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes provider fields in Tier 2
+                fields.push(ProviderAddField::OpenClawApiProtocol);
+                fields.push(ProviderAddField::OpenCodeApiKey);
+                fields.push(ProviderAddField::OpenCodeBaseUrl);
+                fields.push(ProviderAddField::OpenClawUserAgent);
+                fields.push(ProviderAddField::OpenClawModels);
             }
         }
 
-        if !matches!(self.app_type, AppType::OpenClaw) {
+        if !matches!(self.app_type, AppType::OpenClaw | AppType::Hermes) {
             fields.push(ProviderAddField::CommonConfigDivider);
             fields.push(ProviderAddField::CommonSnippet);
             fields.push(ProviderAddField::IncludeCommonConfig);

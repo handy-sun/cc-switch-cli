@@ -857,7 +857,31 @@ pub fn display_provider_summary(provider: &Provider, app_type: &AppType) {
             }
         }
         AppType::Hermes => {
-            // TODO: Implement Hermes display config in Tier 2
+            if let Some(api_key) = provider
+                .settings_config
+                .get("apiKey")
+                .and_then(|v| v.as_str())
+            {
+                println!(
+                    "  {}: {}",
+                    texts::api_key_display_label(),
+                    mask_api_key(api_key)
+                );
+            }
+            if let Some(base_url) = provider
+                .settings_config
+                .get("baseUrl")
+                .and_then(|v| v.as_str())
+            {
+                println!("  {}: {}", texts::base_url_display_label(), base_url);
+            }
+            if let Some(models) = provider
+                .settings_config
+                .get("models")
+                .and_then(|v| v.as_array())
+            {
+                println!("  {}: {}", texts::model_label(), models.len());
+            }
         }
     }
 

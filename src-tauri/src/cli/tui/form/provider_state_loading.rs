@@ -19,7 +19,7 @@ pub(super) fn populate_form_from_provider(
         AppType::Gemini => populate_gemini_form(form, provider),
         AppType::OpenCode => populate_opencode_form(form, provider),
         AppType::OpenClaw => populate_openclaw_form(form, provider),
-        AppType::Hermes => populate_openclaw_form(form, provider), // TODO: Hermes form in Tier 2
+        AppType::Hermes => populate_openclaw_form(form, provider), // Hermes uses same additive-mode fields as OpenClaw
     }
 }
 

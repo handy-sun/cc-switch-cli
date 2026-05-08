@@ -162,6 +162,11 @@ static PROVIDER_TEMPLATE_DEFS_OPENCLAW: [ProviderTemplateDef; 1] = [ProviderTemp
     label: "Custom",
 }];
 
+static PROVIDER_TEMPLATE_DEFS_HERMES: [ProviderTemplateDef; 1] = [ProviderTemplateDef {
+    id: ProviderTemplateId::Custom,
+    label: "Custom",
+}];
+
 pub(super) fn provider_builtin_template_defs(app_type: &AppType) -> &'static [ProviderTemplateDef] {
     match app_type {
         AppType::Claude => &PROVIDER_TEMPLATE_DEFS_CLAUDE,
@@ -169,7 +174,7 @@ pub(super) fn provider_builtin_template_defs(app_type: &AppType) -> &'static [Pr
         AppType::Gemini => &PROVIDER_TEMPLATE_DEFS_GEMINI,
         AppType::OpenCode => &PROVIDER_TEMPLATE_DEFS_OPENCODE,
         AppType::OpenClaw => &PROVIDER_TEMPLATE_DEFS_OPENCLAW,
-        AppType::Hermes => &[], // TODO: Hermes templates in Tier 2
+        AppType::Hermes => &PROVIDER_TEMPLATE_DEFS_HERMES,
     }
 }
 
@@ -180,7 +185,7 @@ pub(super) fn provider_sponsor_presets(app_type: &AppType) -> &'static [SponsorP
         AppType::Gemini => &SPONSOR_PROVIDER_PRESETS_GEMINI,
         AppType::OpenCode => &SPONSOR_PROVIDER_PRESETS_OPENCODE,
         AppType::OpenClaw => &SPONSOR_PROVIDER_PRESETS_OPENCLAW,
-        AppType::Hermes => &[], // TODO: Hermes sponsor presets in Tier 2
+        AppType::Hermes => &[],
     }
 }
 
@@ -413,7 +418,36 @@ impl ProviderAddFormState {
                 }
             }
             AppType::Hermes => {
-                // TODO: Implement Hermes preset application in Tier 2
+                if preset.id == "aicodemirror" {
+                    self.opencode_api_key.set("");
+                    self.opencode_base_url.set(preset.claude_base_url);
+                    self.opencode_npm_package.set("anthropic-messages");
+                    self.openclaw_user_agent = false;
+                    self.openclaw_models = vec![
+                        json!({
+                            "id": "claude-opus-4-6",
+                            "name": "Claude Opus 4.6",
+                            "contextWindow": 200000,
+                            "cost": {
+                                "input": 5,
+                                "output": 25,
+                            },
+                        }),
+                        json!({
+                            "id": "claude-sonnet-4-6",
+                            "name": "Claude Sonnet 4.6",
+                            "contextWindow": 200000,
+                            "cost": {
+                                "input": 3,
+                                "output": 15,
+                            },
+                        }),
+                    ];
+                    self.opencode_model_id.set("claude-opus-4-6");
+                    self.opencode_model_name.set("Claude Opus 4.6");
+                    self.opencode_model_context_limit.set("200000");
+                    self.opencode_model_original_id = Some("claude-opus-4-6".to_string());
+                }
             }
         }
     }

@@ -163,7 +163,6 @@ impl StreamCheckService {
             }
             AppType::OpenClaw => unreachable!("OpenClaw should return unsupported earlier"),
             AppType::Hermes => {
-                // TODO: Implement Hermes stream check in Tier 2
                 Self::check_codex_stream(
                     &client,
                     &base_url,
