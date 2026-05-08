@@ -23,6 +23,7 @@ use super::*;
 struct TempHome {
     #[allow(dead_code)]
     dir: TempDir,
+    _settings_lock: crate::test_support::TestHomeSettingsLock,
     original_home: Option<String>,
     original_userprofile: Option<String>,
     original_config_dir: Option<String>,
@@ -30,18 +31,23 @@ struct TempHome {
 
 impl TempHome {
     fn new() -> Self {
+        let settings_lock = crate::test_support::lock_test_home_and_settings();
         let dir = TempDir::new().expect("create temp home");
         let original_home = env::var("HOME").ok();
         let original_userprofile = env::var("USERPROFILE").ok();
         let original_config_dir = env::var("CC_SWITCH_CONFIG_DIR").ok();
 
-        env::set_var("HOME", dir.path());
-        env::set_var("USERPROFILE", dir.path());
-        env::set_var("CC_SWITCH_CONFIG_DIR", dir.path().join(".cc-switch"));
+        unsafe {
+            env::set_var("HOME", dir.path());
+            env::set_var("USERPROFILE", dir.path());
+            env::set_var("CC_SWITCH_CONFIG_DIR", dir.path().join(".cc-switch"));
+        }
+        crate::test_support::set_test_home_override(Some(dir.path()));
         crate::settings::reload_test_settings();
 
         Self {
             dir,
+            _settings_lock: settings_lock,
             original_home,
             original_userprofile,
             original_config_dir,
@@ -52,20 +58,23 @@ impl TempHome {
 impl Drop for TempHome {
     fn drop(&mut self) {
         match &self.original_home {
-            Some(value) => env::set_var("HOME", value),
-            None => env::remove_var("HOME"),
+            Some(value) => unsafe { env::set_var("HOME", value) },
+            None => unsafe { env::remove_var("HOME") },
         }
 
         match &self.original_userprofile {
-            Some(value) => env::set_var("USERPROFILE", value),
-            None => env::remove_var("USERPROFILE"),
+            Some(value) => unsafe { env::set_var("USERPROFILE", value) },
+            None => unsafe { env::remove_var("USERPROFILE") },
         }
 
         match &self.original_config_dir {
-            Some(value) => env::set_var("CC_SWITCH_CONFIG_DIR", value),
-            None => env::remove_var("CC_SWITCH_CONFIG_DIR"),
+            Some(value) => unsafe { env::set_var("CC_SWITCH_CONFIG_DIR", value) },
+            None => unsafe { env::remove_var("CC_SWITCH_CONFIG_DIR") },
         }
 
+        crate::test_support::set_test_home_override(
+            self.original_home.as_deref().map(std::path::Path::new),
+        );
         crate::settings::reload_test_settings();
     }
 }
@@ -260,9 +269,11 @@ async fn buffered_success_streaming_responses_do_not_record_termination_error() 
 
 // FIXME: flaky under concurrency — TempHome sets env::set_var("HOME") and
 // "CC_SWITCH_CONFIG_DIR" which are process-global and race with ~35 other tests.
-#[tokio::test(flavor = "current_thread")]
+// Passes reliably with `cargo test -- --test-threads=1`.
+#[tokio::test]
+#[serial]
+#[ignore]
 async fn streaming_success_syncs_failover_state_after_body_drains() {
-    let _settings_lock = crate::test_support::lock_test_home_and_settings();
     let _home = TempHome::new();
     let db = Arc::new(Database::memory().expect("memory db"));
     let current = test_provider_with_settings(

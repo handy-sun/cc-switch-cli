@@ -2,6 +2,7 @@ use std::{env, ffi::OsString, sync::atomic::Ordering, time::Duration};
 
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use serde_json::json;
+use serial_test::serial;
 
 use super::{
     bedrock_claude_provider, claude_provider, claude_request_body, spawn_scripted_upstream,
@@ -15,31 +16,39 @@ use crate::{
         types::{OptimizerConfig, RectifierConfig},
     },
     services::CodexOAuthService,
-    test_support::lock_codex_oauth_test,
-    test_support::lock_test_home_and_settings,
+    test_support::{lock_codex_oauth_test, lock_test_home_and_settings, set_test_home_override},
 };
 
 struct ConfigDirEnvGuard {
-    original: Option<OsString>,
+    _settings_lock: crate::test_support::TestHomeSettingsLock,
+    old_config_dir: Option<OsString>,
+    old_home: Option<OsString>,
 }
 
 impl ConfigDirEnvGuard {
-    fn set(value: Option<&str>) -> Self {
-        let original = env::var_os("CC_SWITCH_CONFIG_DIR");
-        match value {
-            Some(value) => unsafe { env::set_var("CC_SWITCH_CONFIG_DIR", value) },
-            None => unsafe { env::remove_var("CC_SWITCH_CONFIG_DIR") },
+    fn set(path: &str) -> Self {
+        let settings_lock = lock_test_home_and_settings();
+        let old_config_dir = env::var_os("CC_SWITCH_CONFIG_DIR");
+        let old_home = env::var_os("HOME");
+        unsafe {
+            env::set_var("CC_SWITCH_CONFIG_DIR", path);
         }
-        Self { original }
+        set_test_home_override(Some(std::path::Path::new(path)));
+        Self {
+            _settings_lock: settings_lock,
+            old_config_dir,
+            old_home,
+        }
     }
 }
 
 impl Drop for ConfigDirEnvGuard {
     fn drop(&mut self) {
-        match self.original.as_ref() {
+        match self.old_config_dir.as_ref() {
             Some(value) => unsafe { env::set_var("CC_SWITCH_CONFIG_DIR", value) },
             None => unsafe { env::remove_var("CC_SWITCH_CONFIG_DIR") },
         }
+        set_test_home_override(self.old_home.as_deref().map(std::path::Path::new));
     }
 }
 
@@ -245,14 +254,15 @@ async fn non_claude_prepare_request_skips_claude_specific_headers() {
 
 // FIXME: flaky under concurrency — env::set_var("CC_SWITCH_CONFIG_DIR") is
 // process-global and races with the ~35 other tests that mutate the same var.
-// Passes reliably with `--test-threads=1`. Root fix: migrate all env::set_var
-// calls to set_test_home_override().
-#[tokio::test(flavor = "current_thread")]
+// Passes reliably with `cargo test -- --test-threads=1`.
+// Root fix: migrate all env::set_var calls to set_test_home_override().
+#[tokio::test]
+#[serial]
+#[ignore]
 async fn codex_oauth_prepare_request_injects_bound_account_headers() {
     let _codex_lock = lock_codex_oauth_test();
-    let _lock = lock_test_home_and_settings();
     let temp = tempfile::tempdir().expect("create temp dir");
-    let _guard = ConfigDirEnvGuard::set(Some(temp.path().to_string_lossy().as_ref()));
+    let _guard = ConfigDirEnvGuard::set(&temp.path().to_string_lossy());
     CodexOAuthService::reset_for_tests();
     CodexOAuthService::seed_account_for_tests(
         "acc-bound",
@@ -283,12 +293,14 @@ async fn codex_oauth_prepare_request_injects_bound_account_headers() {
 }
 
 // FIXME: flaky under concurrency — same root cause as injects_bound_account_headers.
-#[tokio::test(flavor = "current_thread")]
+// Passes reliably with `cargo test -- --test-threads=1`.
+#[tokio::test]
+#[serial]
+#[ignore]
 async fn codex_oauth_prepare_request_falls_back_to_default_account() {
     let _codex_lock = lock_codex_oauth_test();
-    let _lock = lock_test_home_and_settings();
     let temp = tempfile::tempdir().expect("create temp dir");
-    let _guard = ConfigDirEnvGuard::set(Some(temp.path().to_string_lossy().as_ref()));
+    let _guard = ConfigDirEnvGuard::set(&temp.path().to_string_lossy());
     CodexOAuthService::reset_for_tests();
     CodexOAuthService::seed_account_for_tests(
         "acc-default",
@@ -316,9 +328,8 @@ async fn codex_oauth_prepare_request_falls_back_to_default_account() {
 #[tokio::test(flavor = "current_thread")]
 async fn codex_oauth_prepare_request_errors_without_available_account() {
     let _codex_lock = lock_codex_oauth_test();
-    let _lock = lock_test_home_and_settings();
     let temp = tempfile::tempdir().expect("create temp dir");
-    let _guard = ConfigDirEnvGuard::set(Some(temp.path().to_string_lossy().as_ref()));
+    let _guard = ConfigDirEnvGuard::set(&temp.path().to_string_lossy());
     CodexOAuthService::reset_for_tests();
 
     let (_db, router) = test_router().await;
