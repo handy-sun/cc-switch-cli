@@ -856,14 +856,6 @@ pub fn tui_confirm_delete_prompt_message(name: &str, id: &str) -> String {
     }
 }
 
-pub fn tui_toast_prompt_edit_not_implemented() -> &'static str {
-    if is_chinese() {
-        "提示词编辑尚未实现。"
-    } else {
-        "Prompt editing not implemented yet."
-    }
-}
-
 pub fn tui_toast_prompt_edit_finished() -> &'static str {
     if is_chinese() {
         "提示词编辑完成"
