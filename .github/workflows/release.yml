@@ -297,7 +297,7 @@ jobs:
               -s "${key_file}" \
               -m "${asset}" \
               -x "${asset}.minisig" \
-              -t "cc-switch-cli ${GITHUB_REF_NAME}"
+              -t "cc-switch-tui ${GITHUB_REF_NAME}"
           done
 
           for asset in release-assets/cc-switch-tui-*.tar.gz release-assets/cc-switch-tui-*.zip; do
@@ -310,7 +310,7 @@ jobs:
             release-assets \
             "${GITHUB_REF_NAME}" \
             "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-            "https://github.com/SaladDay/cc-switch-tui/releases/download/${GITHUB_REF_NAME}" \
+            "https://github.com/handy-sun/cc-switch-tui/releases/download/${GITHUB_REF_NAME}" \
             "CC Switch TUI ${GITHUB_REF_NAME}"
 
           rm -f release-assets/*.minisig

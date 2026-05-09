@@ -18,8 +18,8 @@ fn normalize_tag_keeps_existing_prefix() {
 #[test]
 fn parse_checksum_for_asset_finds_plain_filename() {
     let checksums =
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  cc-switch-cli-linux-x64-musl.tar.gz\n";
-    let got = parse_checksum_for_asset(checksums, "cc-switch-cli-linux-x64-musl.tar.gz")
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  cc-switch-tui-linux-x64-musl.tar.gz\n";
+    let got = parse_checksum_for_asset(checksums, "cc-switch-tui-linux-x64-musl.tar.gz")
         .expect("checksum should exist");
     assert_eq!(
         got,
@@ -30,8 +30,8 @@ fn parse_checksum_for_asset_finds_plain_filename() {
 #[test]
 fn parse_checksum_for_asset_supports_star_prefix() {
     let checksums =
-        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB *cc-switch-cli-linux-x64-musl.tar.gz\n";
-    let got = parse_checksum_for_asset(checksums, "cc-switch-cli-linux-x64-musl.tar.gz")
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB *cc-switch-tui-linux-x64-musl.tar.gz\n";
+    let got = parse_checksum_for_asset(checksums, "cc-switch-tui-linux-x64-musl.tar.gz")
         .expect("checksum should exist");
     assert_eq!(
         got,
@@ -53,11 +53,11 @@ fn parse_checksum_for_asset_supports_spaces_in_filename() {
 
 #[test]
 fn release_page_url_for_github_com() {
-    let url = release_page_url("https://github.com/saladday/cc-switch-cli", "latest")
+    let url = release_page_url("https://github.com/handy-sun/cc-switch-tui", "latest")
         .expect("release page url should be built");
     assert_eq!(
         url.as_str(),
-        "https://github.com/saladday/cc-switch-cli/releases/latest"
+        "https://github.com/handy-sun/cc-switch-tui/releases/latest"
     );
 }
 
@@ -76,29 +76,29 @@ fn release_page_url_for_github_enterprise() {
 
 #[test]
 fn release_asset_names_prefer_plain_then_tagged_variant() {
-    let names = release_asset_names("v4.6.2", "cc-switch-cli-linux-x64-musl.tar.gz");
+    let names = release_asset_names("v4.6.2", "cc-switch-tui-linux-x64-musl.tar.gz");
     assert_eq!(
         names,
         vec![
-            "cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
-            "cc-switch-cli-v4.6.2-linux-x64-musl.tar.gz".to_string(),
+            "cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
+            "cc-switch-tui-v4.6.2-linux-x64-musl.tar.gz".to_string(),
         ]
     );
 }
 
 #[test]
 fn release_api_url_for_github_com() {
-    let url = release_api_url("https://github.com/saladday/cc-switch-cli", "latest")
+    let url = release_api_url("https://github.com/handy-sun/cc-switch-tui", "latest")
         .expect("api url should be built");
     assert_eq!(
         url.as_str(),
-        "https://api.github.com/repos/saladday/cc-switch-cli/releases/latest"
+        "https://api.github.com/repos/handy-sun/cc-switch-tui/releases/latest"
     );
 }
 
 #[test]
 fn extract_release_tag_from_url_reads_release_tag_page() {
-    let url = Url::parse("https://github.com/saladday/cc-switch-cli/releases/tag/v4.6.2")
+    let url = Url::parse("https://github.com/handy-sun/cc-switch-tui/releases/tag/v4.6.2")
         .expect("url should parse");
     let tag = extract_release_tag_from_url(&url).expect("tag should be extracted");
     assert_eq!(tag, "v4.6.2");
@@ -176,17 +176,17 @@ async fn fetch_latest_release_tag_falls_back_to_release_page_after_rate_limit() 
 fn select_release_asset_prefers_unprefixed_name() {
     let assets = vec![
         ReleaseAsset {
-            name: "cc-switch-cli-v4.6.2-linux-x64-musl.tar.gz".to_string(),
+            name: "cc-switch-tui-v4.6.2-linux-x64-musl.tar.gz".to_string(),
             browser_download_url: "https://example.com/tagged".to_string(),
             digest: None,
         },
         ReleaseAsset {
-            name: "cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+            name: "cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
             browser_download_url: "https://example.com/plain".to_string(),
             digest: None,
         },
     ];
-    let selected = select_release_asset(&assets, "v4.6.2", "cc-switch-cli-linux-x64-musl.tar.gz")
+    let selected = select_release_asset(&assets, "v4.6.2", "cc-switch-tui-linux-x64-musl.tar.gz")
         .expect("asset should be selected");
     assert_eq!(selected.browser_download_url, "https://example.com/plain");
 }
@@ -194,11 +194,11 @@ fn select_release_asset_prefers_unprefixed_name() {
 #[test]
 fn select_release_asset_falls_back_to_tagged_variant() {
     let assets = vec![ReleaseAsset {
-        name: "cc-switch-cli-v4.6.2-linux-x64-musl.tar.gz".to_string(),
+        name: "cc-switch-tui-v4.6.2-linux-x64-musl.tar.gz".to_string(),
         browser_download_url: "https://example.com/tagged".to_string(),
         digest: None,
     }];
-    let selected = select_release_asset(&assets, "v4.6.2", "cc-switch-cli-linux-x64-musl.tar.gz")
+    let selected = select_release_asset(&assets, "v4.6.2", "cc-switch-tui-linux-x64-musl.tar.gz")
         .expect("asset should be selected");
     assert_eq!(selected.browser_download_url, "https://example.com/tagged");
 }
@@ -235,9 +235,9 @@ fn should_not_skip_when_version_explicitly_requested() {
 
 #[test]
 fn sanitized_asset_file_name_strips_path_segments() {
-    let name = sanitized_asset_file_name("nested/path/cc-switch-cli-linux-x64-musl.tar.gz")
+    let name = sanitized_asset_file_name("nested/path/cc-switch-tui-linux-x64-musl.tar.gz")
         .expect("file name should be extracted");
-    assert_eq!(name, "cc-switch-cli-linux-x64-musl.tar.gz");
+    assert_eq!(name, "cc-switch-tui-linux-x64-musl.tar.gz");
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn validate_target_tag_rejects_path_content() {
 fn validate_download_size_limit_accepts_limit_boundary() {
     validate_download_size_limit(
         MAX_RELEASE_ASSET_SIZE_BYTES,
-        "cc-switch-cli-linux-x64-musl.tar.gz",
+        "cc-switch-tui-linux-x64-musl.tar.gz",
     )
     .expect("size at limit should pass");
 }
@@ -270,7 +270,7 @@ fn validate_download_size_limit_accepts_limit_boundary() {
 fn validate_download_size_limit_rejects_oversized_asset() {
     let err = validate_download_size_limit(
         MAX_RELEASE_ASSET_SIZE_BYTES + 1,
-        "cc-switch-cli-linux-x64-musl.tar.gz",
+        "cc-switch-tui-linux-x64-musl.tar.gz",
     )
     .expect_err("size over limit should fail");
     assert!(err.to_string().contains("too large"));
@@ -285,12 +285,12 @@ fn select_manifest_asset_prefers_linux_glibc_variant_when_overridden() {
         platforms: BTreeMap::from([(
             "linux-x86_64".to_string(),
             UpdatePlatformEntry {
-                url: "https://example.com/cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+                url: "https://example.com/cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
                 signature: "musl-signature".to_string(),
                 variants: BTreeMap::from([(
                     "glibc".to_string(),
                     UpdatePlatformVariant {
-                        url: "https://example.com/cc-switch-cli-linux-x64.tar.gz".to_string(),
+                        url: "https://example.com/cc-switch-tui-linux-x64.tar.gz".to_string(),
                         signature: "glibc-signature".to_string(),
                     },
                 )]),
@@ -303,7 +303,7 @@ fn select_manifest_asset_prefers_linux_glibc_variant_when_overridden() {
 
     assert_eq!(
         asset.url,
-        "https://example.com/cc-switch-cli-linux-x64.tar.gz"
+        "https://example.com/cc-switch-tui-linux-x64.tar.gz"
     );
     assert_eq!(asset.signature, "glibc-signature");
 }
@@ -339,12 +339,12 @@ fn manifest_linux_asset_candidates_keep_musl_strict_when_forced() {
         platforms: BTreeMap::from([(
             "linux-x86_64".to_string(),
             UpdatePlatformEntry {
-                url: "https://example.com/cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+                url: "https://example.com/cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
                 signature: "musl-signature".to_string(),
                 variants: BTreeMap::from([(
                     "glibc".to_string(),
                     UpdatePlatformVariant {
-                        url: "https://example.com/cc-switch-cli-linux-x64.tar.gz".to_string(),
+                        url: "https://example.com/cc-switch-tui-linux-x64.tar.gz".to_string(),
                         signature: "glibc-signature".to_string(),
                     },
                 )]),
@@ -359,7 +359,7 @@ fn manifest_linux_asset_candidates_keep_musl_strict_when_forced() {
     assert_eq!(
         candidates,
         vec![ManifestAsset {
-            url: "https://example.com/cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+            url: "https://example.com/cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
             signature: "musl-signature".to_string(),
         }]
     );
@@ -374,8 +374,8 @@ fn legacy_linux_asset_candidates_follow_glibc_override() {
     assert_eq!(
         candidates,
         vec![
-            "cc-switch-cli-linux-x64.tar.gz".to_string(),
-            "cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+            "cc-switch-tui-linux-x64.tar.gz".to_string(),
+            "cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
         ]
     );
 }
@@ -388,7 +388,7 @@ fn legacy_linux_asset_candidates_keep_musl_strict_when_forced() {
 
     assert_eq!(
         candidates,
-        vec!["cc-switch-cli-linux-x64-musl.tar.gz".to_string(),]
+        vec!["cc-switch-tui-linux-x64-musl.tar.gz".to_string(),]
     );
 }
 

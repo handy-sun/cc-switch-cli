@@ -15,43 +15,61 @@ Commit 1 (core rename) + Commit 2 (docs).
 
 ### src-tauri/Cargo.toml
 
-- [ ] `name = "cc-switch"` → `name = "cc-switch-tui"`
-- [ ] All `[[bin]]` entries: `name = "cc-switch"` → `name = "cc-switch-tui"`
-- [ ] `repository` URL: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
-- [ ] (Keep `lib.name = "cc_switch_lib"` unchanged — avoids mass import churn)
+- [x] `name = "cc-switch"` → `name = "cc-switch-tui"`
+- [x] All `[[bin]]` entries: `name = "cc-switch"` → `name = "cc-switch-tui"`
+- [x] `repository` URL: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
+- [x] (Keep `lib.name = "cc_switch_lib"` unchanged — avoids mass import churn)
 
 ### src-tauri/src/config.rs — default config directory
 
-- [ ] `get_app_config_dir()`: `.cc-switch` → `.cc-switch-tui`
+- [x] `get_app_config_dir()`: `.cc-switch` → `.cc-switch-tui`
   - Isolates from upstream GUI `cc-switch` project (same DB file conflict)
   - `CC_SWITCH_CONFIG_DIR` env var override still works as before
 
 ### .github/workflows/release.yml
 
-- [ ] Artifact directory names: `cc-switch-cli-*` → `cc-switch-tui-*`
-- [ ] Release asset filenames: `cc-switch-cli-*` → `cc-switch-tui-*`
-- [ ] Binary reference: `cc-switch.exe` → `cc-switch-tui.exe`
-- [ ] Release title: `cc-switch-cli` → `cc-switch-tui`
-- [ ] Repo URL: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
+- [x] Artifact directory names: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] Release asset filenames: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] Binary reference: `cc-switch.exe` → `cc-switch-tui.exe`
+- [x] Release title: `cc-switch-cli` → `cc-switch-tui`
+- [x] Repo URL: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
 
 ### .github/workflows/rust-ci.yml
 
-- [ ] Artifact name: `cc-switch-${{ matrix.target }}` → `cc-switch-tui-${{ matrix.target }}`
+- [x] Artifact name: `cc-switch-${{ matrix.target }}` → `cc-switch-tui-${{ matrix.target }}`
 
 ### install.sh
 
-- [ ] `REPO="SaladDay/cc-switch-cli"` → `REPO="handy-sun/cc-switch-tui"`
-- [ ] All asset name patterns: `cc-switch-cli-*` → `cc-switch-tui-*`
-- [ ] Binary path references
+- [x] `REPO="SaladDay/cc-switch-cli"` → `REPO="handy-sun/cc-switch-tui"`
+- [x] All asset name patterns: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] Binary path references
 
 ### scripts/generate_latest_json.py
 
-- [ ] Asset filename patterns: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] Asset filename patterns: `cc-switch-cli-*` → `cc-switch-tui-*`
 
 ### flake.nix (both)
 
-- [ ] `flake.nix`: package name, description references
-- [ ] `src-tauri/flake.nix`: same
+- [x] `flake.nix`: package name, description references
+- [x] `src-tauri/flake.nix`: same
+
+### src-tauri/src/cli/commands/update.rs
+
+- [x] All asset name strings: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] `tagged_asset_name()`: strip_prefix + format strings
+
+### src-tauri/src/cli/commands/update/tests.rs
+
+- [x] All asset name strings: `cc-switch-cli-*` → `cc-switch-tui-*`
+- [x] Repo URLs: `saladday/cc-switch-cli` → `handy-sun/cc-switch-tui`
+
+### src-tauri/tests/install_script.rs
+
+- [x] All asset name strings: `cc-switch-cli-*` → `cc-switch-tui-*`
+
+### Tests (rebuild verification)
+
+- [ ] Fix `CARGO_BIN_EXE_cc-switch` → `CARGO_BIN_EXE_cc-switch-tui` (separate task)
 
 ---
 
@@ -59,19 +77,19 @@ Commit 1 (core rename) + Commit 2 (docs).
 
 ### README.md + README_ZH.md
 
-- [ ] All `cc-switch-cli` references → `cc-switch-tui`
-- [ ] All `cc-switch` binary command examples → `cc-switch-tui`
-- [ ] Install URLs: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
-- [ ] Asset filename patterns
+- [x] All `cc-switch-cli` references → `cc-switch-tui`
+- [x] All `cc-switch` binary command examples → `cc-switch-tui`
+- [x] Install URLs: `SaladDay/cc-switch-cli` → `handy-sun/cc-switch-tui`
+- [x] Asset filename patterns
 
 ### CHANGELOG.md
 
-- [ ] Headline `cc-switch-cli` → `cc-switch-tui`
+- [x] Headline `cc-switch-cli` → `cc-switch-tui`
 - [ ] Add rename entry for next version
 
 ### AGENTS.md / CLAUDE.md (if they exist)
 
-- [ ] Project references (check what's current)
+- [x] Project references (check what's current)
 
 ---
 
@@ -82,6 +100,8 @@ Commit 1 (core rename) + Commit 2 (docs).
 | `cc_switch_lib` crate name | Would touch every `use cc_switch_lib::...` line — massive diff, zero user-facing impact |
 | `com.ccswitch.desktop` in tauri.conf.json | GUI-only; this project dropped Tauri GUI |
 | Rust source code `"cc-switch"` string refs | Only if they're binary-name paths in docs/help text |
+| `docs/plans/`, `docs/design/`, `docs/superpowers/` | Historical documents — keep as-is for traceability |
+| `provider_templates.rs` PackyAPI promo code | Third-party registration code — must not change |
 
 ---
 

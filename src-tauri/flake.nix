@@ -9,7 +9,7 @@
 ## rquickjs QuickJS C code are compiled by zig automatically.
 
 {
-  description = "Rust devShell for cc-switch (cargo-zigbuild cross-compilation)";
+  description = "Rust devShell for cc-switch-tui (cargo-zigbuild cross-compilation)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

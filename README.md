@@ -1,13 +1,13 @@
 <div align="center">
 
-# CC-Switch CLI
+# CC-Switch TUI
 
 [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-<a href="https://trendshift.io/repositories/22544" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22544" alt="SaladDay%2Fcc-switch-cli | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/22544" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22544" alt="SaladDay%2Fcc-switch-tui | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
 **Command-Line Management Tool for Claude Code, Codex, Gemini, OpenCode & OpenClaw**
 
@@ -37,13 +37,13 @@ This project is a **TUI fork** of [CC-Switch](https://github.com/farion1231/cc-s
 <table>
   <tr>
     <td width="180">
-      <a href="https://www.packyapi.com/register?aff=cc-switch-cli">
+      <a href="https://www.packyapi.com/register?aff=cc-switch-tui">
         <img src="assets/partners/logos/packycode.png" alt="PackyCode" width="150">
       </a>
     </td>
     <td>
       Thanks to <b>PackyCode</b> for sponsoring this project! PackyCode is a reliable and efficient API relay service provider, offering relay services for Claude Code, Codex, Gemini, and more. <br/>
-      PackyCode provides special discounts for our software users: register via <a href="https://www.packyapi.com/register?aff=cc-switch-cli">this link</a> and use promo code <code>cc-switch-cli</code> when recharging to get <b>10% off</b>.
+      PackyCode provides special discounts for our software users: register via <a href="https://www.packyapi.com/register?aff=cc-switch-tui">this link</a> and use promo code <code>cc-switch-tui</code> when recharging to get <b>10% off</b>.
     </td>
   </tr>
   <tr>
@@ -64,7 +64,7 @@ This project is a **TUI fork** of [CC-Switch](https://github.com/farion1231/cc-s
     </td>
     <td>
       Thanks to <b>RightCode</b> for sponsoring this project! RightCode reliably provides routing services for models such as Claude Code, Codex, and Gemini. It features a highly cost-effective Codex monthly subscription plan and <b>supports quota rollovers—unused quota from one day can be carried over and used the next day.</b> <br/>
-      RightCode offers a special deal for CC-Switch CLI users: register via <a href="https://www.right.codes/register?aff=ccswitch-cli">this link</a> and get <b>25% bonus pay-as-you-go credits</b> on every top-up!
+      RightCode offers a special deal for CC-Switch TUI users: register via <a href="https://www.right.codes/register?aff=ccswitch-cli">this link</a> and get <b>25% bonus pay-as-you-go credits</b> on every top-up!
     </td>
   </tr>
   <tr>
@@ -75,7 +75,7 @@ This project is a **TUI fork** of [CC-Switch](https://github.com/farion1231/cc-s
     </td>
     <td>
       Thanks to <b>DDS</b> for sponsoring this project! DDS Hub is a reliable and high-performance Claude API proxy service. DDS Hub provides cost-effective domestic Claude direct acceleration services for both individual and enterprise users. We offer stable and low-latency Claude Max number pools, with full support for <b>Claude Haiku, Opus, Sonnet</b> and other flagship models. Invoices are available for recharges of 1000 RMB or more. Enterprise customers can also enjoy customized grouping and dedicated technical support services. <br/>
-      Exclusive benefit for CC-Switch CLI users: register via <a href="https://ddshub.short.gy/ccscli">this link</a> and enjoy <b>an extra 10% credit</b> on your first recharge (please contact the group admin to claim after recharging)!
+      Exclusive benefit for CC-Switch TUI users: register via <a href="https://ddshub.short.gy/ccscli">this link</a> and enjoy <b>an extra 10% credit</b> on your first recharge (please contact the group admin to claim after recharging)!
     </td>
   </tr>
 </table>

@@ -1,6 +1,6 @@
 <div align="center">
 
-# CC-Switch CLI
+# CC-Switch TUI
 
 [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
@@ -33,16 +33,16 @@
 <table>
   <tr>
     <td width="180">
-      <a href="https://www.packyapi.com/register?aff=cc-switch-cli">
+      <a href="https://www.packyapi.com/register?aff=cc-switch-tui">
         <img src="assets/partners/logos/packycode.png" alt="PackyCode" width="150">
       </a>
     </td>
     <td>
       感谢 <b>PackyCode</b> 赞助本项目！<br/>
       官网：<a href="https://www.packyapi.com">https://www.packyapi.com</a><br/>
-      CC-Switch CLI 专属优惠：通过
-      <a href="https://www.packyapi.com/register?aff=cc-switch-cli">此链接</a>
-      注册，并在充值时填写优惠码 <code>cc-switch-cli</code>，即可享受 <b>9 折优惠</b>。
+      CC-Switch TUI 专属优惠：通过
+      <a href="https://www.packyapi.com/register?aff=cc-switch-tui">此链接</a>
+      注册，并在充值时填写优惠码 <code>cc-switch-tui</code>，即可享受 <b>9 折优惠</b>。
     </td>
   </tr>
   <tr>
@@ -53,7 +53,7 @@
     </td>
     <td>
       感谢 <b>AICodeMirror</b> 赞助本项目！<b>AICodeMirror</b> 提供 Claude Code / Codex / Gemini CLI 官方高稳定中转服务，支持企业级并发、快速开票与 7x24 专属技术支持。Claude Code / Codex / Gemini 官方通道价格低至原价的 <b>38% / 2% / 9%</b>，充值另有折上折！<br/>
-      <b>AICodeMirror</b> 为 cc-switch-cli 用户提供专属福利：通过<a href="https://www.aicodemirror.com/register?invitecode=77V9EA">此链接</a>注册，首充可享 <b>8 折</b>，即 <b>20% off</b>，企业客户最高可享 <b>75 折</b>，即 <b>25% off</b>。
+      <b>AICodeMirror</b> 为 cc-switch-tui 用户提供专属福利：通过<a href="https://www.aicodemirror.com/register?invitecode=77V9EA">此链接</a>注册，首充可享 <b>8 折</b>，即 <b>20% off</b>，企业客户最高可享 <b>75 折</b>，即 <b>25% off</b>。
     </td>
   </tr>
   <tr>
@@ -65,7 +65,7 @@
     <td>
       感谢 <b>RightCode</b> 赞助本项目！<br/>
       RightCode 为 Claude Code、Codex、Gemini 等模型提供稳定的路由服务，拥有高性价比的 Codex 月付方案，且<b>支持额度滚存——当天未用完的额度可顺延至次日使用。</b><br/>
-      RightCode 为 CC-Switch CLI 用户提供了特别优惠：通过<a href="https://www.right.codes/register?aff=ccswitch-cli">此链接</a>注册，每次充值均可获得实付金额 <b>25%</b> 的按量额度！
+      RightCode 为 CC-Switch TUI 用户提供了特别优惠：通过<a href="https://www.right.codes/register?aff=ccswitch-cli">此链接</a>注册，每次充值均可获得实付金额 <b>25%</b> 的按量额度！
     </td>
   </tr>
   <tr>
@@ -76,7 +76,7 @@
     </td>
     <td>
       感谢 <b>DDS</b> 赞助本项目！呆呆兽是一家专注 Claude 的可靠高效 API 中转站，为个人和企业用户提供极具性价比的国内 Claude 直连加速服务。支持 <b>Claude Haiku / Opus / Sonnet 等满血模型</b>。充值满 1000 元即可开具发票，企业客户更可享受定制化分组和技术支持服务。<br/>
-      CC-Switch CLI 用户专属福利：通过<a href="https://ddshub.short.gy/ccscli">此链接</a>注册后，首单充值可<b>额外赠送 10% 额度</b>（充值后请联系群主领取）！
+      CC-Switch TUI 用户专属福利：通过<a href="https://ddshub.short.gy/ccscli">此链接</a>注册后，首单充值可<b>额外赠送 10% 额度</b>（充值后请联系群主领取）！
     </td>
   </tr>
 </table>
@@ -221,7 +221,7 @@ move cc-switch-tui.exe C:\Windows\System32\
 **构建：**
 ```bash
 git clone https://github.com/handy-sun/cc-switch-tui.git
-cd cc-switch-cli/src-tauri
+cd cc-switch-tui/src-tauri
 cargo build --release
 
 # 二进制位置：./target/release/cc-switch

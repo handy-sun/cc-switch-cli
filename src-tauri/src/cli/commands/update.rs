@@ -445,38 +445,38 @@ fn release_asset_candidates_for_platform(
 ) -> Result<Vec<String>, AppError> {
     let names = match (os, arch) {
         ("macos", "x86_64") => vec![
-            "cc-switch-cli-darwin-universal.tar.gz".to_string(),
-            "cc-switch-cli-darwin-x64.tar.gz".to_string(),
+            "cc-switch-tui-darwin-universal.tar.gz".to_string(),
+            "cc-switch-tui-darwin-x64.tar.gz".to_string(),
         ],
         ("macos", "aarch64") => vec![
-            "cc-switch-cli-darwin-universal.tar.gz".to_string(),
-            "cc-switch-cli-darwin-arm64.tar.gz".to_string(),
+            "cc-switch-tui-darwin-universal.tar.gz".to_string(),
+            "cc-switch-tui-darwin-arm64.tar.gz".to_string(),
         ],
         ("linux", "x86_64") => match preference {
             LinuxLibcPreference::Auto => vec![
-                "cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
-                "cc-switch-cli-linux-x64.tar.gz".to_string(),
+                "cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
+                "cc-switch-tui-linux-x64.tar.gz".to_string(),
             ],
-            LinuxLibcPreference::Musl => vec!["cc-switch-cli-linux-x64-musl.tar.gz".to_string()],
+            LinuxLibcPreference::Musl => vec!["cc-switch-tui-linux-x64-musl.tar.gz".to_string()],
             LinuxLibcPreference::Glibc => vec![
-                "cc-switch-cli-linux-x64.tar.gz".to_string(),
-                "cc-switch-cli-linux-x64-musl.tar.gz".to_string(),
+                "cc-switch-tui-linux-x64.tar.gz".to_string(),
+                "cc-switch-tui-linux-x64-musl.tar.gz".to_string(),
             ],
         },
         ("linux", "aarch64") => match preference {
             LinuxLibcPreference::Auto => vec![
-                "cc-switch-cli-linux-arm64-musl.tar.gz".to_string(),
-                "cc-switch-cli-linux-arm64.tar.gz".to_string(),
+                "cc-switch-tui-linux-arm64-musl.tar.gz".to_string(),
+                "cc-switch-tui-linux-arm64.tar.gz".to_string(),
             ],
             LinuxLibcPreference::Musl => {
-                vec!["cc-switch-cli-linux-arm64-musl.tar.gz".to_string()]
+                vec!["cc-switch-tui-linux-arm64-musl.tar.gz".to_string()]
             }
             LinuxLibcPreference::Glibc => vec![
-                "cc-switch-cli-linux-arm64.tar.gz".to_string(),
-                "cc-switch-cli-linux-arm64-musl.tar.gz".to_string(),
+                "cc-switch-tui-linux-arm64.tar.gz".to_string(),
+                "cc-switch-tui-linux-arm64-musl.tar.gz".to_string(),
             ],
         },
-        ("windows", "x86_64") => vec!["cc-switch-cli-windows-x64.zip".to_string()],
+        ("windows", "x86_64") => vec!["cc-switch-tui-windows-x64.zip".to_string()],
         _ => {
             return Err(AppError::Message(format!(
                 "Self-update is not supported for platform {os}/{arch}."
@@ -865,8 +865,8 @@ fn extract_release_tag_from_url(url: &Url) -> Option<String> {
 }
 
 fn tagged_asset_name(tag: &str, asset_name: &str) -> String {
-    if let Some(suffix) = asset_name.strip_prefix("cc-switch-cli-") {
-        return format!("cc-switch-cli-{tag}-{suffix}");
+    if let Some(suffix) = asset_name.strip_prefix("cc-switch-tui-") {
+        return format!("cc-switch-tui-{tag}-{suffix}");
     }
     asset_name.to_string()
 }

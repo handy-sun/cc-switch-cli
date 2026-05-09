@@ -11,7 +11,7 @@ pub mod proxy;
 pub mod settings;
 pub mod skills;
 pub mod stream_check;
-// NOTE(cc-switch-cli): keep schema aligned with upstream, but only compile the DAOs
+// NOTE(cc-switch-tui): keep schema aligned with upstream, but only compile the DAOs
 // that are currently supported by the CLI build. The remaining upstream DAOs are
 // intentionally left unreferenced (and thus not compiled) until the corresponding
 // services/types land in this repo.

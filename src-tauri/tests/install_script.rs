@@ -102,7 +102,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 printf '%s' "$url" > "${CC_SWITCH_TEST_LOG_DIR}/last-url"
-if [ "${CC_SWITCH_TEST_FAIL_MUSL:-0}" = "1" ] && [ "${url##*/}" = "cc-switch-cli-linux-x64-musl.tar.gz" ]; then
+if [ "${CC_SWITCH_TEST_FAIL_MUSL:-0}" = "1" ] && [ "${url##*/}" = "cc-switch-tui-linux-x64-musl.tar.gz" ]; then
   exit 22
 fi
 cp "${CC_SWITCH_TEST_ARCHIVE_PATH}" "$output"
@@ -202,7 +202,7 @@ fn install_script_supports_linux_glibc_override() {
     let requested_url = fs::read_to_string(harness.logs_dir.join("last-url"))
         .expect("download url should be logged");
     assert!(
-        requested_url.ends_with("/cc-switch-cli-linux-x64.tar.gz"),
+        requested_url.ends_with("/cc-switch-tui-linux-x64.tar.gz"),
         "expected glibc asset request, got {requested_url}"
     );
 }
@@ -221,7 +221,7 @@ fn install_script_falls_back_to_glibc_when_musl_download_fails() {
     let requested_url = fs::read_to_string(harness.logs_dir.join("last-url"))
         .expect("download url should be logged");
     assert!(
-        requested_url.ends_with("/cc-switch-cli-linux-x64.tar.gz"),
+        requested_url.ends_with("/cc-switch-tui-linux-x64.tar.gz"),
         "expected fallback glibc asset request, got {requested_url}"
     );
 }
