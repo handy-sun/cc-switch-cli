@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cc-switch-tui-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/cc-switch
+          path: src-tauri/target/${{ matrix.target }}/release/cc-switch-tui
           if-no-files-found: error
 
   test:

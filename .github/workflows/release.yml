@@ -37,7 +37,7 @@ jobs:
           - os: windows-2022
             platform: windows-x64
             target: x86_64-pc-windows-msvc
-            binary: cc-switch-tui-tui.exe
+            binary: cc-switch-tui.exe
           # Linux x86_64 - MUSL (recommended)
           - os: ubuntu-22.04
             platform: linux-x64-musl
@@ -148,7 +148,7 @@ jobs:
       - name: Create universal binary
         run: |
           mkdir -p universal
-          lipo -create -output universal/cc-switch-tui arm64/cc-switch x64/cc-switch
+          lipo -create -output universal/cc-switch-tui arm64/cc-switch-tui x64/cc-switch-tui
           chmod +x universal/cc-switch-tui
           file universal/cc-switch-tui
 
@@ -214,7 +214,7 @@ jobs:
           fi
 
           # macOS ARM64
-          if [ -f "artifacts/cc-switch-tui-darwin-arm64/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-darwin-arm64/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-darwin-arm64.tar.gz \
               -C artifacts/cc-switch-tui-darwin-arm64 cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-darwin-arm64.tar.gz \
@@ -222,7 +222,7 @@ jobs:
           fi
 
           # macOS x64
-          if [ -f "artifacts/cc-switch-tui-darwin-x64/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-darwin-x64/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-darwin-x64.tar.gz \
               -C artifacts/cc-switch-tui-darwin-x64 cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-darwin-x64.tar.gz \
@@ -239,7 +239,7 @@ jobs:
           fi
 
           # Linux x64 - MUSL
-          if [ -f "artifacts/cc-switch-tui-linux-x64-musl/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-linux-x64-musl/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz \
               -C artifacts/cc-switch-tui-linux-x64-musl cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz \
@@ -247,7 +247,7 @@ jobs:
           fi
 
           # Linux x64 - GLIBC
-          if [ -f "artifacts/cc-switch-tui-linux-x64/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-linux-x64/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-linux-x64.tar.gz \
               -C artifacts/cc-switch-tui-linux-x64 cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-linux-x64.tar.gz \
@@ -255,7 +255,7 @@ jobs:
           fi
 
           # Linux ARM64 - MUSL
-          if [ -f "artifacts/cc-switch-tui-linux-arm64-musl/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-linux-arm64-musl/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz \
               -C artifacts/cc-switch-tui-linux-arm64-musl cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz \
@@ -263,7 +263,7 @@ jobs:
           fi
 
           # Linux ARM64 - GLIBC
-          if [ -f "artifacts/cc-switch-tui-linux-arm64/cc-switch" ]; then
+          if [ -f "artifacts/cc-switch-tui-linux-arm64/cc-switch-tui" ]; then
             tar -czf release-assets/cc-switch-tui-${VERSION}-linux-arm64.tar.gz \
               -C artifacts/cc-switch-tui-linux-arm64 cc-switch-tui
             cp release-assets/cc-switch-tui-${VERSION}-linux-arm64.tar.gz \
