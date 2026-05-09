@@ -107,7 +107,7 @@ jobs:
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: cc-switch-${{ matrix.target }}
+          name: cc-switch-tui-${{ matrix.target }}
           path: src-tauri/target/${{ matrix.target }}/release/cc-switch
           if-no-files-found: error
 

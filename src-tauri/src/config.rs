@@ -76,12 +76,12 @@ pub fn get_claude_settings_path() -> PathBuf {
     settings
 }
 
-/// 获取应用配置目录路径（默认 $HOME/.cc-switch，可由 CC_SWITCH_CONFIG_DIR 覆盖）
+/// 获取应用配置目录路径（默认 $HOME/.cc-switch-tui，可由 CC_SWITCH_CONFIG_DIR 覆盖）
 pub fn get_app_config_dir() -> PathBuf {
     if let Some(custom) = env::var_os("CC_SWITCH_CONFIG_DIR") {
         let custom = PathBuf::from(custom);
         if custom.to_string_lossy().trim().is_empty() {
-            return home_dir().expect("无法获取用户主目录").join(".cc-switch");
+            return home_dir().expect("无法获取用户主目录").join(".cc-switch-tui");
         }
         return custom;
     }
@@ -91,7 +91,7 @@ pub fn get_app_config_dir() -> PathBuf {
     //     return custom;
     // }
 
-    home_dir().expect("无法获取用户主目录").join(".cc-switch")
+    home_dir().expect("无法获取用户主目录").join(".cc-switch-tui")
 }
 
 /// 获取应用配置文件路径

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="SaladDay/cc-switch-cli"
-BIN_NAME="cc-switch"
+REPO="handy-sun/cc-switch-tui"
+BIN_NAME="cc-switch-tui"
 INSTALL_DIR="${CC_SWITCH_INSTALL_DIR:-$HOME/.local/bin}"
 TARGET="${INSTALL_DIR}/${BIN_NAME}"
 RELEASES_URL="https://github.com/${REPO}/releases"
@@ -122,15 +122,15 @@ set_linux_asset_candidates() {
       case "${mode}" in
         auto)
           ASSET_CANDIDATES=(
-            "cc-switch-cli-linux-x64-musl.tar.gz"
-            "cc-switch-cli-linux-x64.tar.gz"
+            "cc-switch-tui-linux-x64-musl.tar.gz"
+            "cc-switch-tui-linux-x64.tar.gz"
           )
           ;;
         musl)
-          ASSET_CANDIDATES=("cc-switch-cli-linux-x64-musl.tar.gz")
+          ASSET_CANDIDATES=("cc-switch-tui-linux-x64-musl.tar.gz")
           ;;
         glibc)
-          ASSET_CANDIDATES=("cc-switch-cli-linux-x64.tar.gz")
+          ASSET_CANDIDATES=("cc-switch-tui-linux-x64.tar.gz")
           ;;
       esac
       ;;
@@ -138,15 +138,15 @@ set_linux_asset_candidates() {
       case "${mode}" in
         auto)
           ASSET_CANDIDATES=(
-            "cc-switch-cli-linux-arm64-musl.tar.gz"
-            "cc-switch-cli-linux-arm64.tar.gz"
+            "cc-switch-tui-linux-arm64-musl.tar.gz"
+            "cc-switch-tui-linux-arm64.tar.gz"
           )
           ;;
         musl)
-          ASSET_CANDIDATES=("cc-switch-cli-linux-arm64-musl.tar.gz")
+          ASSET_CANDIDATES=("cc-switch-tui-linux-arm64-musl.tar.gz")
           ;;
         glibc)
-          ASSET_CANDIDATES=("cc-switch-cli-linux-arm64.tar.gz")
+          ASSET_CANDIDATES=("cc-switch-tui-linux-arm64.tar.gz")
           ;;
       esac
       ;;
@@ -181,14 +181,14 @@ detect_asset() {
   case "${os}" in
     Darwin)
       # Universal binary works on both Apple Silicon and Intel
-      ASSET_CANDIDATES=("cc-switch-cli-darwin-universal.tar.gz")
+      ASSET_CANDIDATES=("cc-switch-tui-darwin-universal.tar.gz")
       ;;
     Linux)
       set_linux_asset_candidates "${arch}"
       ;;
     MINGW*|MSYS*|CYGWIN*|Windows_NT)
       err "This script does not support Windows."
-      err "Download cc-switch-cli-windows-x64.zip from: ${RELEASES_URL}"
+      err "Download cc-switch-tui-windows-x64.zip from: ${RELEASES_URL}"
       exit 1
       ;;
     *)

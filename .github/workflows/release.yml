@@ -27,40 +27,40 @@ jobs:
           - os: macos-14
             platform: darwin-arm64
             target: aarch64-apple-darwin
-            binary: cc-switch
+            binary: cc-switch-tui
           # macOS x86_64
           - os: macos-14
             platform: darwin-x64
             target: x86_64-apple-darwin
-            binary: cc-switch
+            binary: cc-switch-tui
           # Windows x86_64
           - os: windows-2022
             platform: windows-x64
             target: x86_64-pc-windows-msvc
-            binary: cc-switch.exe
+            binary: cc-switch-tui-tui.exe
           # Linux x86_64 - MUSL (recommended)
           - os: ubuntu-22.04
             platform: linux-x64-musl
             target: x86_64-unknown-linux-musl
-            binary: cc-switch
+            binary: cc-switch-tui
             use_cross: true
           # Linux x86_64 - GLIBC (fallback)
           - os: ubuntu-22.04
             platform: linux-x64
             target: x86_64-unknown-linux-gnu
-            binary: cc-switch
+            binary: cc-switch-tui
             use_cross: false
           # Linux ARM64 - MUSL (recommended)
           - os: ubuntu-22.04
             platform: linux-arm64-musl
             target: aarch64-unknown-linux-musl
-            binary: cc-switch
+            binary: cc-switch-tui
             use_cross: true
           # Linux ARM64 - GLIBC (fallback)
           - os: ubuntu-22.04
             platform: linux-arm64
             target: aarch64-unknown-linux-gnu
-            binary: cc-switch
+            binary: cc-switch-tui
             use_cross: true
 
     steps:
@@ -123,7 +123,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cc-switch-cli-${{ matrix.platform }}
+          name: cc-switch-tui-${{ matrix.platform }}
           path: dist/${{ matrix.binary }}
           if-no-files-found: error
 
@@ -136,27 +136,27 @@ jobs:
       - name: Download ARM64 binary
         uses: actions/download-artifact@v4
         with:
-          name: cc-switch-cli-darwin-arm64
+          name: cc-switch-tui-darwin-arm64
           path: arm64
 
       - name: Download x64 binary
         uses: actions/download-artifact@v4
         with:
-          name: cc-switch-cli-darwin-x64
+          name: cc-switch-tui-darwin-x64
           path: x64
 
       - name: Create universal binary
         run: |
           mkdir -p universal
-          lipo -create -output universal/cc-switch arm64/cc-switch x64/cc-switch
-          chmod +x universal/cc-switch
-          file universal/cc-switch
+          lipo -create -output universal/cc-switch-tui arm64/cc-switch x64/cc-switch
+          chmod +x universal/cc-switch-tui
+          file universal/cc-switch-tui
 
       - name: Upload universal artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cc-switch-cli-darwin-universal
-          path: universal/cc-switch
+          name: cc-switch-tui-darwin-universal
+          path: universal/cc-switch-tui
           if-no-files-found: error
 
   release:
@@ -206,68 +206,68 @@ jobs:
           VERSION="${GITHUB_REF_NAME}"
 
           # macOS Universal
-          if [ -f "artifacts/cc-switch-cli-darwin-universal/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-darwin-universal.tar.gz \
-              -C artifacts/cc-switch-cli-darwin-universal cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-darwin-universal.tar.gz \
-              release-assets/cc-switch-cli-darwin-universal.tar.gz
+          if [ -f "artifacts/cc-switch-tui-darwin-universal/cc-switch-tui" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-darwin-universal.tar.gz \
+              -C artifacts/cc-switch-tui-darwin-universal cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-darwin-universal.tar.gz \
+              release-assets/cc-switch-tui-darwin-universal.tar.gz
           fi
 
           # macOS ARM64
-          if [ -f "artifacts/cc-switch-cli-darwin-arm64/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-darwin-arm64.tar.gz \
-              -C artifacts/cc-switch-cli-darwin-arm64 cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-darwin-arm64.tar.gz \
-              release-assets/cc-switch-cli-darwin-arm64.tar.gz
+          if [ -f "artifacts/cc-switch-tui-darwin-arm64/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-darwin-arm64.tar.gz \
+              -C artifacts/cc-switch-tui-darwin-arm64 cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-darwin-arm64.tar.gz \
+              release-assets/cc-switch-tui-darwin-arm64.tar.gz
           fi
 
           # macOS x64
-          if [ -f "artifacts/cc-switch-cli-darwin-x64/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-darwin-x64.tar.gz \
-              -C artifacts/cc-switch-cli-darwin-x64 cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-darwin-x64.tar.gz \
-              release-assets/cc-switch-cli-darwin-x64.tar.gz
+          if [ -f "artifacts/cc-switch-tui-darwin-x64/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-darwin-x64.tar.gz \
+              -C artifacts/cc-switch-tui-darwin-x64 cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-darwin-x64.tar.gz \
+              release-assets/cc-switch-tui-darwin-x64.tar.gz
           fi
 
           # Windows
-          if [ -f "artifacts/cc-switch-cli-windows-x64/cc-switch.exe" ]; then
-            cd artifacts/cc-switch-cli-windows-x64
-            zip ../../release-assets/cc-switch-cli-${VERSION}-windows-x64.zip cc-switch.exe
+          if [ -f "artifacts/cc-switch-tui-windows-x64/cc-switch-tui.exe" ]; then
+            cd artifacts/cc-switch-tui-windows-x64
+            zip ../../release-assets/cc-switch-tui-${VERSION}-windows-x64.zip cc-switch-tui.exe
             cd ../..
-            cp release-assets/cc-switch-cli-${VERSION}-windows-x64.zip \
-              release-assets/cc-switch-cli-windows-x64.zip
+            cp release-assets/cc-switch-tui-${VERSION}-windows-x64.zip \
+              release-assets/cc-switch-tui-windows-x64.zip
           fi
 
           # Linux x64 - MUSL
-          if [ -f "artifacts/cc-switch-cli-linux-x64-musl/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-linux-x64-musl.tar.gz \
-              -C artifacts/cc-switch-cli-linux-x64-musl cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-linux-x64-musl.tar.gz \
-              release-assets/cc-switch-cli-linux-x64-musl.tar.gz
+          if [ -f "artifacts/cc-switch-tui-linux-x64-musl/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz \
+              -C artifacts/cc-switch-tui-linux-x64-musl cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz \
+              release-assets/cc-switch-tui-linux-x64-musl.tar.gz
           fi
 
           # Linux x64 - GLIBC
-          if [ -f "artifacts/cc-switch-cli-linux-x64/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-linux-x64.tar.gz \
-              -C artifacts/cc-switch-cli-linux-x64 cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-linux-x64.tar.gz \
-              release-assets/cc-switch-cli-linux-x64.tar.gz
+          if [ -f "artifacts/cc-switch-tui-linux-x64/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-linux-x64.tar.gz \
+              -C artifacts/cc-switch-tui-linux-x64 cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-linux-x64.tar.gz \
+              release-assets/cc-switch-tui-linux-x64.tar.gz
           fi
 
           # Linux ARM64 - MUSL
-          if [ -f "artifacts/cc-switch-cli-linux-arm64-musl/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-linux-arm64-musl.tar.gz \
-              -C artifacts/cc-switch-cli-linux-arm64-musl cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-linux-arm64-musl.tar.gz \
-              release-assets/cc-switch-cli-linux-arm64-musl.tar.gz
+          if [ -f "artifacts/cc-switch-tui-linux-arm64-musl/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz \
+              -C artifacts/cc-switch-tui-linux-arm64-musl cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz \
+              release-assets/cc-switch-tui-linux-arm64-musl.tar.gz
           fi
 
           # Linux ARM64 - GLIBC
-          if [ -f "artifacts/cc-switch-cli-linux-arm64/cc-switch" ]; then
-            tar -czf release-assets/cc-switch-cli-${VERSION}-linux-arm64.tar.gz \
-              -C artifacts/cc-switch-cli-linux-arm64 cc-switch
-            cp release-assets/cc-switch-cli-${VERSION}-linux-arm64.tar.gz \
-              release-assets/cc-switch-cli-linux-arm64.tar.gz
+          if [ -f "artifacts/cc-switch-tui-linux-arm64/cc-switch" ]; then
+            tar -czf release-assets/cc-switch-tui-${VERSION}-linux-arm64.tar.gz \
+              -C artifacts/cc-switch-tui-linux-arm64 cc-switch-tui
+            cp release-assets/cc-switch-tui-${VERSION}-linux-arm64.tar.gz \
+              release-assets/cc-switch-tui-linux-arm64.tar.gz
           fi
 
           # Include install script
@@ -292,7 +292,7 @@ jobs:
           chmod 600 "${key_file}"
 
           shopt -s nullglob
-          for asset in release-assets/cc-switch-cli-*.tar.gz release-assets/cc-switch-cli-*.zip; do
+          for asset in release-assets/cc-switch-tui-*.tar.gz release-assets/cc-switch-tui-*.zip; do
             minisign -S \
               -s "${key_file}" \
               -m "${asset}" \
@@ -300,7 +300,7 @@ jobs:
               -t "cc-switch-cli ${GITHUB_REF_NAME}"
           done
 
-          for asset in release-assets/cc-switch-cli-*.tar.gz release-assets/cc-switch-cli-*.zip; do
+          for asset in release-assets/cc-switch-tui-*.tar.gz release-assets/cc-switch-tui-*.zip; do
             minisign -Vm "${asset}" \
               -p src-tauri/updater/minisign.pub \
               -x "${asset}.minisig"
@@ -310,8 +310,8 @@ jobs:
             release-assets \
             "${GITHUB_REF_NAME}" \
             "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-            "https://github.com/SaladDay/cc-switch-cli/releases/download/${GITHUB_REF_NAME}" \
-            "CC Switch CLI ${GITHUB_REF_NAME}"
+            "https://github.com/SaladDay/cc-switch-tui/releases/download/${GITHUB_REF_NAME}" \
+            "CC Switch TUI ${GITHUB_REF_NAME}"
 
           rm -f release-assets/*.minisig
 
@@ -325,11 +325,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: CC Switch CLI ${{ github.ref_name }}
+          name: CC Switch TUI ${{ github.ref_name }}
           draft: false
           prerelease: false
           body: |
-            ## CC Switch CLI ${{ github.ref_name }}
+            ## CC Switch TUI ${{ github.ref_name }}
 
             All-in-One Assistant for Claude Code, Codex, Gemini, OpenCode & OpenClaw
 
@@ -339,26 +339,26 @@ jobs:
 
             | 平台 Platform | 文件 File |
             |---------------|-----------|
-            | **macOS** (Universal) | `cc-switch-cli-${{ github.ref_name }}-darwin-universal.tar.gz` |
-            | **Windows** (x64) | `cc-switch-cli-${{ github.ref_name }}-windows-x64.zip` |
-            | **Linux** (x64 musl) | `cc-switch-cli-${{ github.ref_name }}-linux-x64-musl.tar.gz` |
-            | **Linux** (x64 glibc) | `cc-switch-cli-${{ github.ref_name }}-linux-x64.tar.gz` |
-            | **Linux** (ARM64 musl) | `cc-switch-cli-${{ github.ref_name }}-linux-arm64-musl.tar.gz` |
-            | **Linux** (ARM64 glibc) | `cc-switch-cli-${{ github.ref_name }}-linux-arm64.tar.gz` |
+            | **macOS** (Universal) | `cc-switch-tui-${{ github.ref_name }}-darwin-universal.tar.gz` |
+            | **Windows** (x64) | `cc-switch-tui-${{ github.ref_name }}-windows-x64.zip` |
+            | **Linux** (x64 musl) | `cc-switch-tui-${{ github.ref_name }}-linux-x64-musl.tar.gz` |
+            | **Linux** (x64 glibc) | `cc-switch-tui-${{ github.ref_name }}-linux-x64.tar.gz` |
+            | **Linux** (ARM64 musl) | `cc-switch-tui-${{ github.ref_name }}-linux-arm64-musl.tar.gz` |
+            | **Linux** (ARM64 glibc) | `cc-switch-tui-${{ github.ref_name }}-linux-arm64.tar.gz` |
 
             ### 🚀 快速安装 / Quick Install
 
             **macOS / Linux (one-liner):**
             ```bash
-            curl -fsSL https://github.com/SaladDay/cc-switch-cli/releases/latest/download/install.sh | bash
+            curl -fsSL https://github.com/SaladDay/cc-switch-tui/releases/latest/download/install.sh | bash
             ```
 
             **Windows:**
             ```powershell
-            # 下载 zip 后将 cc-switch.exe 移动到 PATH 目录或直接运行
+            # 下载 zip 后将 cc-switch-tui.exe 移动到 PATH 目录或直接运行
             ```
 
-            💡 **macOS 提示**: 如遇 "无法验证开发者"，执行：`xattr -cr ~/.local/bin/cc-switch`
+            💡 **macOS 提示**: 如遇 "无法验证开发者"，执行：`xattr -cr ~/.local/bin/cc-switch-tui`
 
             💡 **Linux 用户建议优先使用 `-musl` 版本（静态链接，无系统库依赖，兼容所有发行版）**
           files: release-assets/*
