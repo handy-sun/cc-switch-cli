@@ -53,7 +53,7 @@ impl Harness {
         fs::create_dir_all(&payload_dir).expect("payload dir should exist");
 
         write_executable(
-            &payload_dir.join("cc-switch"),
+            &payload_dir.join("cc-switch-tui"),
             "#!/usr/bin/env bash\necho new build\n",
         );
 
@@ -62,7 +62,7 @@ impl Harness {
             .arg(&archive_path)
             .arg("-C")
             .arg(&payload_dir)
-            .arg("cc-switch")
+            .arg("cc-switch-tui")
             .status()
             .expect("tar should run");
         assert!(status.success(), "tar should create archive");
@@ -148,7 +148,7 @@ cp "${CC_SWITCH_TEST_ARCHIVE_PATH}" "$output"
 fn install_script_requires_force_for_non_tty_overwrite() {
     let harness = Harness::new();
     write_executable(
-        &harness.install_dir.join("cc-switch"),
+        &harness.install_dir.join("cc-switch-tui"),
         "#!/usr/bin/env bash\necho old build\n",
     );
 
@@ -169,11 +169,11 @@ fn install_script_force_overwrites_and_warns_about_shadowed_path() {
     let shadow_dir = harness.home.join("shadow-bin");
     fs::create_dir_all(&shadow_dir).expect("shadow dir should exist");
     write_executable(
-        &shadow_dir.join("cc-switch"),
+        &shadow_dir.join("cc-switch-tui"),
         "#!/usr/bin/env bash\necho shadow build\n",
     );
     write_executable(
-        &harness.install_dir.join("cc-switch"),
+        &harness.install_dir.join("cc-switch-tui"),
         "#!/usr/bin/env bash\necho old build\n",
     );
 
@@ -183,7 +183,7 @@ fn install_script_force_overwrites_and_warns_about_shadowed_path() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("shadow"), "stderr was: {stderr}");
 
-    let installed = fs::read_to_string(harness.install_dir.join("cc-switch"))
+    let installed = fs::read_to_string(harness.install_dir.join("cc-switch-tui"))
         .expect("installed file should exist");
     assert!(installed.contains("new build"));
 }

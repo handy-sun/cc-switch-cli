@@ -318,7 +318,7 @@ impl ProviderAdapter for ClaudeAdapter {
                 .header("Copilot-Integration-Id", "vscode-chat"),
             AuthStrategy::CodexOAuth => request
                 .header("Authorization", format!("Bearer {}", auth.api_key))
-                .header("originator", "cc-switch"),
+                .header("originator", "cc-switch-tui"),
             AuthStrategy::Bearer | AuthStrategy::Google | AuthStrategy::GoogleOAuth => {
                 request.header("Authorization", format!("Bearer {}", auth.api_key))
             }

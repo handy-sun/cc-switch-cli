@@ -289,7 +289,7 @@ async fn codex_oauth_prepare_request_injects_bound_account_headers() {
         header_value(&request, "chatgpt-account-id"),
         Some("acc-bound")
     );
-    assert_eq!(header_value(&request, "originator"), Some("cc-switch"));
+    assert_eq!(header_value(&request, "originator"), Some("cc-switch-tui"));
 }
 
 // FIXME: flaky under concurrency — same root cause as injects_bound_account_headers.

@@ -1,8 +1,8 @@
 //! Skills service layer
 //!
 //! v3.10.0+ 统一管理架构（与上游一致）：
-//! - SSOT（单一事实源）：`~/.cc-switch/skills/`
-//! - 数据库存储安装记录、启用状态与仓库列表（`~/.cc-switch/cc-switch.db`）
+//! - SSOT（单一事实源）：`~/.cc-switch-tui/skills/`
+//! - 数据库存储安装记录、启用状态与仓库列表（`~/.cc-switch-tui/cc-switch.db`）
 
 mod discovery;
 
@@ -99,7 +99,7 @@ impl Default for SkillStore {
 }
 
 // ============================================================================
-// New (Phase 3) SSOT-based model persisted to ~/.cc-switch/skills.json (no DB)
+// New (Phase 3) SSOT-based model persisted to ~/.cc-switch-tui/skills.json (no DB)
 // ============================================================================
 
 /// Skill sync method (upstream-aligned).
@@ -398,7 +398,7 @@ impl SkillService {
 
     pub fn new() -> Result<Self, AppError> {
         let http_client = Client::builder()
-            .user_agent("cc-switch")
+            .user_agent("cc-switch-tui")
             .timeout(std::time::Duration::from_secs(10))
             .build()
             .map_err(|e| {
@@ -1148,7 +1148,7 @@ impl SkillService {
             scan_sources.push((agents_dir, "agents".to_string()));
         }
         if let Ok(ssot_dir) = Self::get_ssot_dir() {
-            scan_sources.push((ssot_dir, "cc-switch".to_string()));
+            scan_sources.push((ssot_dir, "cc-switch-tui".to_string()));
         }
 
         let mut unmanaged: HashMap<String, UnmanagedSkill> = HashMap::new();
@@ -1217,7 +1217,7 @@ impl SkillService {
         if let Some(agents_dir) = get_agents_skills_dir() {
             search_sources.push((agents_dir, "agents".to_string()));
         }
-        search_sources.push((ssot_dir.clone(), "cc-switch".to_string()));
+        search_sources.push((ssot_dir.clone(), "cc-switch-tui".to_string()));
 
         for dir_name in directories {
             let mut source_path: Option<PathBuf> = None;

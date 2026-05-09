@@ -151,7 +151,7 @@ fn scan_unmanaged_includes_agents_and_ssot_sources() {
     assert!(ssot_skill
         .found_in
         .iter()
-        .any(|source| source == "cc-switch"));
+        .any(|source| source == "cc-switch-tui"));
 }
 
 #[test]

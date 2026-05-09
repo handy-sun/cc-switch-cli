@@ -104,20 +104,25 @@ mod tests {
 
     #[test]
     fn update_and_completions_skip_startup_state() {
-        let update = Cli::parse_from(["cc-switch", "update"]);
-        let completions_generate = Cli::parse_from(["cc-switch", "completions", "bash"]);
-        let completions_install = Cli::parse_from(["cc-switch", "completions", "install"]);
-        let completions_status = Cli::parse_from(["cc-switch", "completions", "status"]);
-        let completions_uninstall =
-            Cli::parse_from(["cc-switch", "completions", "uninstall", "--shell", "bash"]);
+        let update = Cli::parse_from(["cc-switch-tui", "update"]);
+        let completions_generate = Cli::parse_from(["cc-switch-tui", "completions", "bash"]);
+        let completions_install = Cli::parse_from(["cc-switch-tui", "completions", "install"]);
+        let completions_status = Cli::parse_from(["cc-switch-tui", "completions", "status"]);
+        let completions_uninstall = Cli::parse_from([
+            "cc-switch-tui",
+            "completions",
+            "uninstall",
+            "--shell",
+            "bash",
+        ]);
         let internal_capture = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "internal",
             "capture-codex-temp",
             "official",
             "/tmp/codex-home",
         ]);
-        let provider = Cli::parse_from(["cc-switch", "provider", "list"]);
+        let provider = Cli::parse_from(["cc-switch-tui", "provider", "list"]);
 
         assert!(!command_requires_startup_state(&update.command));
         assert!(!command_requires_startup_state(
@@ -141,7 +146,7 @@ mod tests {
         seed_future_schema_database(temp.path());
         let _guard = ConfigDirEnvGuard::set(temp.path());
 
-        let cli = Cli::parse_from(["cc-switch", "update"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "update"]);
         initialize_startup_state_if_needed(&cli.command)
             .expect("update should not touch startup state");
     }
@@ -154,7 +159,7 @@ mod tests {
         let _guard = ConfigDirEnvGuard::set(temp.path());
 
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "internal",
             "capture-codex-temp",
             "official",
@@ -171,7 +176,7 @@ mod tests {
         seed_future_schema_database(temp.path());
         let _guard = ConfigDirEnvGuard::set(temp.path());
 
-        let cli = Cli::parse_from(["cc-switch", "provider", "list"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "provider", "list"]);
         let err = initialize_startup_state_if_needed(&cli.command)
             .expect_err("provider command should still require startup state");
         assert!(

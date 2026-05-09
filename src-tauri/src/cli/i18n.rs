@@ -298,7 +298,7 @@ pub mod texts {
 
     // Ratatui TUI (new interactive UI)
     pub fn tui_app_title() -> &'static str {
-        "cc-switch"
+        "cc-switch-tui"
     }
 
     pub fn tui_tabs_title() -> &'static str {

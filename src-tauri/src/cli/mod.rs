@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn parses_proxy_serve_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "proxy", "serve", "--listen-port", "0"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "proxy", "serve", "--listen-port", "0"]);
 
         match cli.command {
             Some(Commands::Proxy(super::commands::proxy::ProxyCommand::Serve {
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn parses_proxy_serve_takeover_flags() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "proxy",
             "serve",
             "--takeover",
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn parses_proxy_enable_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "proxy", "enable"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "proxy", "enable"]);
 
         match cli.command {
             Some(Commands::Proxy(super::commands::proxy::ProxyCommand::Enable)) => {}
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn parses_proxy_disable_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "proxy", "disable"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "proxy", "disable"]);
 
         match cli.command {
             Some(Commands::Proxy(super::commands::proxy::ProxyCommand::Disable)) => {}
@@ -190,7 +190,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn parses_start_claude_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "start", "claude", "demo"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "start", "claude", "demo"]);
 
         match cli.command {
             Some(Commands::Start(super::commands::start::StartCommand::Claude {
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn parses_start_claude_native_args_after_double_dash() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "start",
             "claude",
             "demo",
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn rejects_start_claude_native_args_without_double_dash() {
         let result = Cli::try_parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "start",
             "claude",
             "demo",
@@ -252,7 +252,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn parses_start_codex_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "start", "codex", "demo"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "start", "codex", "demo"]);
 
         match cli.command {
             Some(Commands::Start(super::commands::start::StartCommand::Codex {
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn parses_start_codex_multiple_native_args_after_double_dash() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "start",
             "codex",
             "demo",
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn parses_provider_stream_check_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "provider", "stream-check", "demo"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "provider", "stream-check", "demo"]);
 
         match cli.command {
             Some(Commands::Provider(super::commands::provider::ProviderCommand::StreamCheck {
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn parses_provider_fetch_models_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "provider", "fetch-models", "demo"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "provider", "fetch-models", "demo"]);
 
         match cli.command {
             Some(Commands::Provider(super::commands::provider::ProviderCommand::FetchModels {
@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn parses_provider_export_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "provider", "export", "demo"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "provider", "export", "demo"]);
 
         match cli.command {
             Some(Commands::Provider(super::commands::provider::ProviderCommand::Export {
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn parses_provider_export_with_output_subcommand() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "provider",
             "export",
             "demo",
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn parses_config_webdav_show_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "config", "webdav", "show"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "config", "webdav", "show"]);
 
         match cli.command {
             Some(Commands::Config(super::commands::config::ConfigCommand::WebDav(
@@ -418,7 +418,7 @@ mod tests {
     #[test]
     fn parses_config_webdav_set_subcommand() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "config",
             "webdav",
             "set",
@@ -452,7 +452,7 @@ mod tests {
 
     #[test]
     fn parses_config_webdav_check_connection_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "config", "webdav", "check-connection"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "config", "webdav", "check-connection"]);
 
         match cli.command {
             Some(Commands::Config(super::commands::config::ConfigCommand::WebDav(
@@ -492,7 +492,7 @@ mod tests {
 
     #[test]
     fn parses_config_common_set_legacy_json_alias() {
-        let cli = Cli::parse_from(["cc-switch", "config", "common", "set", "--json", "{}"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "config", "common", "set", "--json", "{}"]);
 
         match cli.command {
             Some(Commands::Config(super::commands::config::ConfigCommand::Common(_))) => {}
@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn parses_env_tools_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "env", "tools"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "env", "tools"]);
 
         match cli.command {
             Some(Commands::Env(super::commands::env::EnvCommand::Tools)) => {}
@@ -532,7 +532,7 @@ mod tests {
 
     #[test]
     fn parses_skills_repo_enable_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "skills", "repos", "enable", "foo/bar"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "skills", "repos", "enable", "foo/bar"]);
 
         match cli.command {
             Some(Commands::Skills(super::commands::skills::SkillsCommand::Repos(
@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn parses_skills_repo_disable_subcommand() {
-        let cli = Cli::parse_from(["cc-switch", "skills", "repos", "disable", "foo/bar"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "skills", "repos", "disable", "foo/bar"]);
 
         match cli.command {
             Some(Commands::Skills(super::commands::skills::SkillsCommand::Repos(
@@ -560,7 +560,7 @@ mod tests {
 
     #[test]
     fn parses_completions_bash_generator_path() {
-        let cli = Cli::parse_from(["cc-switch", "completions", "bash"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "completions", "bash"]);
 
         match cli.command {
             Some(Commands::Completions(command)) => {
@@ -573,7 +573,7 @@ mod tests {
 
     #[test]
     fn parses_completions_zsh_generator_path() {
-        let cli = Cli::parse_from(["cc-switch", "completions", "zsh"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "completions", "zsh"]);
 
         match cli.command {
             Some(Commands::Completions(command)) => {
@@ -586,7 +586,7 @@ mod tests {
 
     #[test]
     fn parses_completions_install() {
-        let cli = Cli::parse_from(["cc-switch", "completions", "install"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "completions", "install"]);
 
         match cli.command {
             Some(Commands::Completions(command)) => match command.action {
@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn parses_completions_install_with_shell_and_activate() {
         let cli = Cli::parse_from([
-            "cc-switch",
+            "cc-switch-tui",
             "completions",
             "install",
             "--shell",
@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn parses_completions_status() {
-        let cli = Cli::parse_from(["cc-switch", "completions", "status"]);
+        let cli = Cli::parse_from(["cc-switch-tui", "completions", "status"]);
 
         match cli.command {
             Some(Commands::Completions(command)) => match command.action {
@@ -640,7 +640,13 @@ mod tests {
 
     #[test]
     fn parses_completions_uninstall_with_explicit_shell() {
-        let cli = Cli::parse_from(["cc-switch", "completions", "uninstall", "--shell", "bash"]);
+        let cli = Cli::parse_from([
+            "cc-switch-tui",
+            "completions",
+            "uninstall",
+            "--shell",
+            "bash",
+        ]);
 
         match cli.command {
             Some(Commands::Completions(command)) => match command.action {
@@ -655,7 +661,8 @@ mod tests {
 
     #[test]
     fn rejects_completions_generator_with_activate_flag() {
-        let err = match Cli::try_parse_from(["cc-switch", "completions", "bash", "--activate"]) {
+        let err = match Cli::try_parse_from(["cc-switch-tui", "completions", "bash", "--activate"])
+        {
             Ok(_) => panic!("generator path should reject lifecycle-only flags"),
             Err(err) => err,
         };

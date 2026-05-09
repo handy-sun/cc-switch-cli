@@ -1967,7 +1967,7 @@ impl ProxyService {
         if current_exe
             .file_stem()
             .and_then(|value| value.to_str())
-            .is_some_and(|value| value.starts_with("cc-switch"))
+            .is_some_and(|value| value.starts_with("cc-switch-tui"))
         {
             return Ok(current_exe);
         }

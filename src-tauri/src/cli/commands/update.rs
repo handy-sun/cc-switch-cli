@@ -16,7 +16,7 @@ use crate::cli::ui::{highlight, info, success};
 use crate::error::AppError;
 
 const REPO_URL: &str = env!("CARGO_PKG_REPOSITORY");
-const BINARY_NAME: &str = "cc-switch";
+const BINARY_NAME: &str = "cc-switch-tui";
 const CHECKSUMS_FILE_NAME: &str = "checksums.txt";
 const LATEST_MANIFEST_FILE_NAME: &str = "latest.json";
 const HTTP_REQUEST_TIMEOUT_SECS: u64 = 30;

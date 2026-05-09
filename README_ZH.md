@@ -2,8 +2,8 @@
 
 # CC-Switch CLI
 
-[![Version](https://img.shields.io/badge/version-5.4.0-blue.svg)](https://github.com/saladday/cc-switch-cli/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/saladday/cc-switch-cli/releases)
+[![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://github.com/handy-sun/cc-switch-tui/releases)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -142,7 +142,7 @@ cc-switch --app openclaw provider list  # 管理 OpenClaw 供应商
 > Windows 用户请参考下方手动安装。
 
 ```bash
-curl -fsSL https://github.com/SaladDay/cc-switch-cli/releases/latest/download/install.sh | bash
+curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/install.sh | bash
 ```
 
 默认安装到 `~/.local/bin`。设置 `CC_SWITCH_INSTALL_DIR` 可自定义安装目录。
@@ -157,16 +157,16 @@ curl -fsSL https://github.com/SaladDay/cc-switch-cli/releases/latest/download/in
 
 ```bash
 # 下载 Universal Binary（推荐，支持 Apple Silicon + Intel）
-curl -LO https://github.com/saladday/cc-switch-cli/releases/latest/download/cc-switch-cli-darwin-universal.tar.gz
+curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-darwin-universal.tar.gz
 
 # 解压
-tar -xzf cc-switch-cli-darwin-universal.tar.gz
+tar -xzf cc-switch-tui-darwin-universal.tar.gz
 
 # 添加执行权限
 chmod +x cc-switch
 
 # 移动到 PATH
-sudo mv cc-switch /usr/local/bin/
+sudo mv cc-switch-tui /usr/local/bin/
 
 # 如遇 "无法验证开发者" 提示
 xattr -cr /usr/local/bin/cc-switch
@@ -176,39 +176,39 @@ xattr -cr /usr/local/bin/cc-switch
 
 ```bash
 # 下载
-curl -LO https://github.com/saladday/cc-switch-cli/releases/latest/download/cc-switch-cli-linux-x64-musl.tar.gz
+curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-x64-musl.tar.gz
 
 # 解压
-tar -xzf cc-switch-cli-linux-x64-musl.tar.gz
+tar -xzf cc-switch-tui-linux-x64-musl.tar.gz
 
 # 添加执行权限
 chmod +x cc-switch
 
 # 移动到 PATH
-sudo mv cc-switch /usr/local/bin/
+sudo mv cc-switch-tui /usr/local/bin/
 ```
 
 #### Linux (ARM64)
 
 ```bash
 # 适用于树莓派或 ARM 服务器
-curl -LO https://github.com/saladday/cc-switch-cli/releases/latest/download/cc-switch-cli-linux-arm64-musl.tar.gz
-tar -xzf cc-switch-cli-linux-arm64-musl.tar.gz
+curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-arm64-musl.tar.gz
+tar -xzf cc-switch-tui-linux-arm64-musl.tar.gz
 chmod +x cc-switch
-sudo mv cc-switch /usr/local/bin/
+sudo mv cc-switch-tui /usr/local/bin/
 ```
 
 #### Windows
 
 ```powershell
 # 下载 zip 文件
-# https://github.com/saladday/cc-switch-cli/releases/latest/download/cc-switch-cli-windows-x64.zip
+# https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-windows-x64.zip
 
-# 解压后将 cc-switch.exe 移动到 PATH 目录，例如：
-move cc-switch.exe C:\Windows\System32\
+# 解压后将 cc-switch-tui.exe 移动到 PATH 目录，例如：
+move cc-switch-tui.exe C:\Windows\System32\
 
 # 或者直接运行
-.\cc-switch.exe
+.\cc-switch-tui.exe
 ```
 
 </details>
@@ -220,7 +220,7 @@ move cc-switch.exe C:\Windows\System32\
 
 **构建：**
 ```bash
-git clone https://github.com/saladday/cc-switch-cli.git
+git clone https://github.com/handy-sun/cc-switch-tui.git
 cd cc-switch-cli/src-tauri
 cargo build --release
 
@@ -230,10 +230,10 @@ cargo build --release
 **安装到系统：**
 ```bash
 # macOS/Linux
-sudo cp target/release/cc-switch /usr/local/bin/
+sudo cp target/release/cc-switch-tui /usr/local/bin/
 
 # Windows
-copy target\release\cc-switch.exe C:\Windows\System32\
+copy target\release\cc-switch-tui.exe C:\Windows\System32\
 ```
 
 ---
@@ -400,23 +400,23 @@ Shell 补全、环境管理等实用功能。
 
 ```bash
 # Shell 补全
-cc-switch completions install --activate   # 推荐：为 bash/zsh 安装并激活
-cc-switch completions install              # 保守模式：只安装，不改 rc
-cc-switch completions status               # 查看受管补全状态
-cc-switch completions uninstall            # 移除受管补全文件和激活块
-cc-switch completions bash                 # 兼容保留的 raw generator 路径
-cc-switch completions fish                 # 其他 shell 继续走 raw generate
+cc-switch-tui completions install --activate   # 推荐：为 bash/zsh 安装并激活
+cc-switch-tui completions install              # 保守模式：只安装，不改 rc
+cc-switch-tui completions status               # 查看受管补全状态
+cc-switch-tui completions uninstall            # 移除受管补全文件和激活块
+cc-switch-tui completions bash                 # 兼容保留的 raw generator 路径
+cc-switch-tui completions fish                 # 其他 shell 继续走 raw generate
 
 # 环境管理
 cc-switch env check                  # 检查环境冲突
 cc-switch env list                   # 列出环境变量
 
 # 自更新
-cc-switch update                     # 更新到最新版本
-cc-switch update --version vX.Y.Z    # 更新到指定版本
+cc-switch-tui update                     # 更新到最新版本
+cc-switch-tui update --version vX.Y.Z    # 更新到指定版本
 ```
 
-自动安装 / 激活当前只支持 `bash` 和 `zsh`。其他 shell 仍然可以通过 raw generator 路径使用，例如 `cc-switch completions fish`。
+自动安装 / 激活当前只支持 `bash` 和 `zsh`。其他 shell 仍然可以通过 raw generator 路径使用，例如 `cc-switch-tui completions fish`。
 
 ---
 
@@ -424,8 +424,8 @@ cc-switch update --version vX.Y.Z    # 更新到指定版本
 
 ### 核心设计
 
-- **SQLite 持久化**：核心数据默认存放在 `~/.cc-switch/cc-switch.db`（若设置 `CC_SWITCH_CONFIG_DIR` 则改为该目录下）；旧版 `config.json` 仅保留给兼容与迁移路径使用
-- **Skills SSOT**：技能源文件默认保存在 `~/.cc-switch/skills/`（若设置 `CC_SWITCH_CONFIG_DIR` 则改为 `$CC_SWITCH_CONFIG_DIR/skills/`），安装状态和启用状态由数据库统一记录
+- **SQLite 持久化**：核心数据默认存放在 `~/.cc-switch-tui/cc-switch.db`（若设置 `CC_SWITCH_CONFIG_DIR` 则改为该目录下）；旧版 `config.json` 仅保留给兼容与迁移路径使用
+- **Skills SSOT**：技能源文件默认保存在 `~/.cc-switch-tui/skills/`（若设置 `CC_SWITCH_CONFIG_DIR` 则改为 `$CC_SWITCH_CONFIG_DIR/skills/`），安装状态和启用状态由数据库统一记录
 - **安全 Live 同步（默认）**：若目标应用尚未初始化，将跳过写入 live 文件（避免意外创建 `~/.claude`、`~/.codex`、`~/.gemini`、`~/.config/opencode` 或 `~/.openclaw`）
 - **原子写入**：临时文件 + 重命名模式防止损坏
 - **服务层复用**：100% 复用原 GUI 版本
@@ -434,11 +434,11 @@ cc-switch update --version vX.Y.Z    # 更新到指定版本
 ### 配置文件
 
 **CC-Switch 存储**（默认：`~/.cc-switch`，可用 `CC_SWITCH_CONFIG_DIR` 覆盖）：
-- `~/.cc-switch/cc-switch.db` - 供应商、MCP、提示词和应用状态的主数据库
-- `~/.cc-switch/settings.json` - 设置
-- `~/.cc-switch/skills/` - 已安装技能源码（SSOT）
-- `~/.cc-switch/backups/` - 自动轮换（保留 10 个）
-- `~/.cc-switch/config.json` - 为兼容与导入流程保留的旧版 JSON
+- `~/.cc-switch-tui/cc-switch.db` - 供应商、MCP、提示词和应用状态的主数据库
+- `~/.cc-switch-tui/settings.json` - 设置
+- `~/.cc-switch-tui/skills/` - 已安装技能源码（SSOT）
+- `~/.cc-switch-tui/backups/` - 自动轮换（保留 10 个）
+- `~/.cc-switch-tui/config.json` - 为兼容与导入流程保留的旧版 JSON
 
 设置 `CC_SWITCH_CONFIG_DIR` 后，CC-Switch 会改用该目录作为配置根目录；这不会自动迁移 `~/.cc-switch` 中的现有数据。
 
@@ -511,7 +511,7 @@ cc-switch --app codex provider list
 
 <br>
 
-请在我们的 [GitHub Issues](https://github.com/saladday/cc-switch-cli/issues) 页面提交问题，并包含：
+请在我们的 [GitHub Issues](https://github.com/handy-sun/cc-switch-tui/issues) 页面提交问题，并包含：
 - 问题或功能请求的详细描述
 - 复现步骤（针对 bug）
 - 你的系统信息（操作系统、版本）

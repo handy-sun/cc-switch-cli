@@ -9,7 +9,7 @@ use crate::AppError;
 
 const MANAGED_BLOCK_START: &str = "# >>> cc-switch completions >>>";
 const MANAGED_BLOCK_END: &str = "# <<< cc-switch completions <<<";
-const COMMAND_NAME: &str = "cc-switch";
+const COMMAND_NAME: &str = "cc-switch-tui";
 
 #[derive(Args, Debug, Clone)]
 #[command(arg_required_else_help = true)]
