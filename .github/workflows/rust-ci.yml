@@ -180,5 +180,5 @@ jobs:
           sandbox_home="$(mktemp -d)"
           export HOME="$sandbox_home"
           export USERPROFILE="$sandbox_home"
-          export CC_SWITCH_CONFIG_DIR="$sandbox_home/.cc-switch"
+          export CC_SWITCH_TUI_CONFIG_DIR="$sandbox_home/.cc-switch"
           cargo test --test proxy_claude_forwarder_alignment proxy_claude_auto_failover_uses_activated_queue_providers -- --exact --nocapture

@@ -423,8 +423,8 @@ Automated install/activation currently targets `bash` and `zsh` only. Other shel
 
 ### Core Design
 
-- **SQLite-backed state**: Core data lives in `~/.cc-switch-tui/cc-switch.db` by default (or under `$CC_SWITCH_CONFIG_DIR/` when set); legacy `config.json` is kept only for older import and migration paths
-- **Skills SSOT**: Skill source files live in `~/.cc-switch-tui/skills/` by default (or under `$CC_SWITCH_CONFIG_DIR/skills/` when set), while install state and app enablement stay in the database
+- **SQLite-backed state**: Core data lives in `~/.cc-switch-tui/cc-switch.db` by default (or under `$CC_SWITCH_TUI_CONFIG_DIR/` when set); legacy `config.json` is kept only for older import and migration paths
+- **Skills SSOT**: Skill source files live in `~/.cc-switch-tui/skills/` by default (or under `$CC_SWITCH_TUI_CONFIG_DIR/skills/` when set), while install state and app enablement stay in the database
 - **Safe Live Sync (Default)**: Skip writing live files for apps that haven't been initialized yet (prevents creating `~/.claude`, `~/.codex`, `~/.gemini`, `~/.config/opencode`, or `~/.openclaw` unexpectedly)
 - **Atomic Writes**: Temp file + rename pattern prevents corruption
 - **Service Layer Reuse**: 100% reused from original GUI version
@@ -432,14 +432,14 @@ Automated install/activation currently targets `bash` and `zsh` only. Other shel
 
 ### Configuration Files
 
-**CC-Switch Storage** (default: `~/.cc-switch-tui`, override: `CC_SWITCH_CONFIG_DIR`):
+**CC-Switch Storage** (default: `~/.cc-switch-tui`, override: `CC_SWITCH_TUI_CONFIG_DIR`):
 - `~/.cc-switch-tui/cc-switch.db` - Main database for providers, MCP, prompts, and app state
 - `~/.cc-switch-tui/settings.json` - Settings
 - `~/.cc-switch-tui/skills/` - Installed skill sources (SSOT)
 - `~/.cc-switch-tui/backups/` - Auto-rotation (keep 10)
 - `~/.cc-switch-tui/config.json` - Legacy JSON kept for compatibility and import flows
 
-When `CC_SWITCH_CONFIG_DIR` is set, CC-Switch uses that directory as its config root; existing data under `~/.cc-switch-tui` is not migrated automatically.
+When `CC_SWITCH_TUI_CONFIG_DIR` is set, CC-Switch uses that directory as its config root; existing data under `~/.cc-switch-tui` is not migrated automatically.
 
 **Live Configs:**
 - Claude: `~/.claude/settings.json` (provider/common config), `~/.claude.json` (MCP), `~/.claude/CLAUDE.md` (prompts)

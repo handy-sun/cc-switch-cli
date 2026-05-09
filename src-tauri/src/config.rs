@@ -76,8 +76,19 @@ pub fn get_claude_settings_path() -> PathBuf {
     settings
 }
 
-/// 获取应用配置目录路径（默认 $HOME/.cc-switch-tui，可由 CC_SWITCH_CONFIG_DIR 覆盖）
+/// 获取应用配置目录路径（默认 $HOME/.cc-switch-tui）
+///
+/// Priority: CC_SWITCH_TUI_CONFIG_DIR > CC_SWITCH_CONFIG_DIR (deprecated) > default
 pub fn get_app_config_dir() -> PathBuf {
+    // New env var — takes priority
+    if let Some(custom) = env::var_os("CC_SWITCH_TUI_CONFIG_DIR") {
+        let custom = PathBuf::from(custom);
+        if !custom.to_string_lossy().trim().is_empty() {
+            return custom;
+        }
+    }
+
+    // Legacy env var — still works but prints deprecation warning
     if let Some(custom) = env::var_os("CC_SWITCH_CONFIG_DIR") {
         let custom = PathBuf::from(custom);
         if custom.to_string_lossy().trim().is_empty() {
@@ -85,6 +96,7 @@ pub fn get_app_config_dir() -> PathBuf {
                 .expect("无法获取用户主目录")
                 .join(".cc-switch-tui");
         }
+        eprintln!("deprecated: CC_SWITCH_CONFIG_DIR is set; use CC_SWITCH_TUI_CONFIG_DIR instead");
         return custom;
     }
 
@@ -317,6 +329,38 @@ mod tests {
         assert_eq!(
             get_app_config_dir(),
             PathBuf::from("/tmp/cc-switch-home-blank").join(".cc-switch-tui")
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn get_app_config_dir_prefers_new_env_var() {
+        let _guard = lock_test_home_and_settings();
+        let _new =
+            ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", Some("/tmp/cc-switch-tui-new"));
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", Some("/tmp/cc-switch-old"));
+        set_test_home_override(Some(Path::new("/tmp/cc-switch-home")));
+
+        assert_eq!(
+            get_app_config_dir(),
+            PathBuf::from("/tmp/cc-switch-tui-new")
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn get_app_config_dir_new_env_var_alone_works() {
+        let _guard = lock_test_home_and_settings();
+        let _new =
+            ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", Some("/tmp/cc-switch-tui-alone"));
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+        set_test_home_override(Some(Path::new("/tmp/cc-switch-home")));
+
+        assert_eq!(
+            get_app_config_dir(),
+            PathBuf::from("/tmp/cc-switch-tui-alone")
         );
 
         set_test_home_override(None);
