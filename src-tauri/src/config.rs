@@ -449,6 +449,211 @@ mod tests {
         crate::settings::update_settings(original_settings).unwrap();
         set_test_home_override(None);
     }
+
+    // ──── migration tests ────
+
+    #[test]
+    fn migration_copies_config_json_and_db() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+        let marker = new_dir.join(".migrated-from-cc-switch");
+
+        fs::create_dir_all(old_dir.join("skills")).unwrap();
+        fs::write(old_dir.join("config.json"), r#"{"version":"1.0"}"#).unwrap();
+        fs::write(old_dir.join("cc-switch.db"), "fake-db").unwrap();
+        fs::write(old_dir.join("skills").join("my-skill.md"), "# Skill").unwrap();
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert!(
+            new_dir.join("config.json").exists(),
+            "config.json should be copied"
+        );
+        assert!(
+            new_dir.join("cc-switch.db").exists(),
+            "cc-switch.db should be copied"
+        );
+        assert!(
+            new_dir.join("skills").join("my-skill.md").exists(),
+            "skills/ should be recursively copied"
+        );
+        assert!(marker.exists(), "migration marker should be written");
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_skips_when_target_has_marker() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+        let marker = new_dir.join(".migrated-from-cc-switch");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("config.json"), "v1").unwrap();
+        fs::create_dir_all(&new_dir).unwrap();
+        fs::write(&marker, "already migrated").unwrap();
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert!(
+            !new_dir.join("config.json").exists(),
+            "should not copy when marker exists"
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_skips_when_env_override_set() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old =
+            ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", Some("/tmp/custom-override-test"));
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("config.json"), "v1").unwrap();
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert!(
+            !new_dir.exists(),
+            "should not create target dir when env override set"
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_is_idempotent() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+        let marker = new_dir.join(".migrated-from-cc-switch");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("config.json"), "v1").unwrap();
+
+        // First run
+        migrate_legacy_config_dir_if_needed();
+        assert!(new_dir.join("config.json").exists());
+        let mtime_after_first = fs::metadata(&marker).unwrap().modified().unwrap();
+
+        // Second run — should be a no-op
+        migrate_legacy_config_dir_if_needed();
+        let mtime_after_second = fs::metadata(&marker).unwrap().modified().unwrap();
+        assert_eq!(
+            mtime_after_first, mtime_after_second,
+            "second migration should not overwrite marker"
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_preserves_old_directory() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("config.json"), "v1").unwrap();
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert!(old_dir.exists(), "old directory must be preserved");
+        assert!(
+            old_dir.join("config.json").exists(),
+            "old files must be preserved"
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_copies_only_3_most_recent_backups() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let backup_dir = old_dir.join("backups");
+        fs::create_dir_all(&backup_dir).unwrap();
+
+        // Create 5 backup files with increasing mtime
+        for i in 1..=5 {
+            let path = backup_dir.join(format!("backup-{}.json", i));
+            fs::write(&path, format!("backup {}", i)).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        migrate_legacy_config_dir_if_needed();
+
+        let new_backup_dir = home.join(".cc-switch-tui").join("backups");
+        let copied: Vec<_> = fs::read_dir(&new_backup_dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+
+        assert_eq!(
+            copied.len(),
+            3,
+            "only 3 most recent backups should be copied"
+        );
+        assert!(
+            copied.contains(&"backup-3.json".to_string()),
+            "third most recent should be copied"
+        );
+        assert!(
+            copied.contains(&"backup-4.json".to_string()),
+            "second most recent should be copied"
+        );
+        assert!(
+            copied.contains(&"backup-5.json".to_string()),
+            "most recent should be copied"
+        );
+
+        set_test_home_override(None);
+    }
 }
 
 /// 复制文件
@@ -465,6 +670,141 @@ pub fn delete_file(path: &Path) -> Result<(), AppError> {
     if path.exists() {
         fs::remove_file(path).map_err(|e| AppError::io(path, e))?;
     }
+    Ok(())
+}
+
+/// 递归复制目录内容（跳过软链接）
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if file_type.is_symlink() {
+            continue;
+        }
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// 复制备份目录中最近 3 个（按修改时间）条目
+fn copy_recent_backups(src: &Path, dst: &Path, limit: usize) -> std::io::Result<()> {
+    let mut entries: Vec<_> = fs::read_dir(src)?
+        .filter_map(|e| e.ok())
+        .filter(|e| !e.file_type().map_or(true, |t| t.is_symlink()))
+        .collect();
+    entries.sort_by_key(|e| {
+        e.metadata()
+            .and_then(|m| m.modified())
+            .unwrap_or(std::time::UNIX_EPOCH)
+    });
+    entries.reverse();
+    entries.truncate(limit);
+
+    fs::create_dir_all(dst)?;
+    for entry in entries {
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if entry.file_type().map_or(false, |t| t.is_dir()) {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// 首次运行时自动将旧版 ~/.cc-switch/ 迁移到 ~/.cc-switch-tui/
+///
+/// 仅在以下条件全部满足时执行：
+/// - 未设置 CC_SWITCH_TUI_CONFIG_DIR 或 CC_SWITCH_CONFIG_DIR 环境变量
+/// - 旧目录 ~/.cc-switch/ 存在且非空
+/// - 目标目录不存在 .migrated-from-cc-switch 标记文件
+///
+/// 非破坏性：旧目录完好保留。错误仅记录警告，绝不阻塞启动。
+pub fn migrate_legacy_config_dir_if_needed() {
+    // Skip if any env override is set — user has explicit config location
+    if env::var_os("CC_SWITCH_TUI_CONFIG_DIR").is_some()
+        || env::var_os("CC_SWITCH_CONFIG_DIR").is_some()
+    {
+        return;
+    }
+
+    let home = match home_dir() {
+        Some(h) => h,
+        None => return,
+    };
+
+    let old_dir = home.join(".cc-switch");
+    let new_dir = home.join(".cc-switch-tui");
+    let marker = new_dir.join(".migrated-from-cc-switch");
+
+    // Guard: old dir must exist
+    if !old_dir.exists() || !old_dir.is_dir() {
+        return;
+    }
+    // Guard: skip if already migrated
+    if marker.exists() {
+        return;
+    }
+    // Guard: old dir must be non-empty
+    let has_contents = fs::read_dir(&old_dir).map_or(false, |mut rd| rd.next().is_some());
+    if !has_contents {
+        return;
+    }
+
+    // Perform migration (errors caught, never propagate)
+    if let Err(e) = try_migrate(&old_dir, &new_dir, &marker) {
+        eprintln!(
+            "cc-switch: legacy config migration failed: {e} (old data preserved at {})",
+            old_dir.display()
+        );
+    }
+}
+
+fn try_migrate(old_dir: &Path, new_dir: &Path, marker: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(new_dir)?;
+
+    for entry in fs::read_dir(old_dir)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if file_type.is_symlink() {
+            continue;
+        }
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        let dst_path = new_dir.join(&file_name);
+
+        if file_name == "backups" && file_type.is_dir() {
+            copy_recent_backups(&src_path, &dst_path, 3)?;
+        } else if file_type.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+
+    // Write marker file to prevent re-migration
+    fs::write(
+        marker,
+        format!(
+            "Migrated from {} on {}",
+            old_dir.display(),
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+        ),
+    )?;
+
+    eprintln!(
+        "cc-switch: config migrated from {} to {} (old directory preserved)",
+        old_dir.display(),
+        new_dir.display()
+    );
     Ok(())
 }
 
