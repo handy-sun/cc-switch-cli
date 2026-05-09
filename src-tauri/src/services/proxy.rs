@@ -1957,7 +1957,7 @@ impl ProxyService {
     }
 
     fn resolve_managed_proxy_executable() -> Result<std::path::PathBuf, String> {
-        if let Some(path) = std::env::var_os("CARGO_BIN_EXE_cc-switch") {
+        if let Some(path) = std::env::var_os("CARGO_BIN_EXE_cc-switch-tui") {
             return Ok(path.into());
         }
 

@@ -285,7 +285,7 @@ mod tests {
 
         assert_eq!(
             get_app_config_dir(),
-            PathBuf::from("/tmp/cc-switch-home-default").join(".cc-switch")
+            PathBuf::from("/tmp/cc-switch-home-default").join(".cc-switch-tui")
         );
 
         set_test_home_override(None);
@@ -316,7 +316,7 @@ mod tests {
 
         assert_eq!(
             get_app_config_dir(),
-            PathBuf::from("/tmp/cc-switch-home-blank").join(".cc-switch")
+            PathBuf::from("/tmp/cc-switch-home-blank").join(".cc-switch-tui")
         );
 
         set_test_home_override(None);

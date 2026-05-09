@@ -18,7 +18,7 @@ fn run_cc_switch(
     shell: &str,
     args: &[&str],
 ) -> std::process::Output {
-    Command::new(env!("CARGO_BIN_EXE_cc-switch"))
+    Command::new(env!("CARGO_BIN_EXE_cc-switch-tui"))
         .args(args)
         .env("HOME", home)
         .env("SHELL", shell)
