@@ -19,18 +19,19 @@ pub(crate) fn home_dir() -> Option<PathBuf> {
 /// Otherwise return the path unchanged.
 fn expand_tilde(path: PathBuf) -> PathBuf {
     let lossy = path.to_string_lossy();
-    // Bare "~"
     if lossy == "~" {
         return home_dir().unwrap_or(path);
     }
-    // "~/" or "~\" prefix
-    if lossy.starts_with("~/") || lossy.starts_with("~\\") {
-        let home = home_dir();
-        if let Some(home) = home {
-            let rest = Path::new(&lossy[1..]);
+
+    if let Some(rest) = lossy
+        .strip_prefix("~/")
+        .or_else(|| lossy.strip_prefix("~\\"))
+    {
+        if let Some(home) = home_dir() {
             return home.join(rest);
         }
     }
+
     path
 }
 
@@ -391,6 +392,38 @@ mod tests {
         assert_eq!(
             get_app_config_dir(),
             PathBuf::from("/tmp/cc-switch-tui-alone")
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn get_app_config_dir_expands_tilde_in_new_env_var() {
+        let _guard = lock_test_home_and_settings();
+        let _new =
+            ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", Some("~/.config/cc-switch-tui"));
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+        set_test_home_override(Some(Path::new("/tmp/cc-switch-home-tilde")));
+
+        assert_eq!(
+            get_app_config_dir(),
+            PathBuf::from("/tmp/cc-switch-home-tilde")
+                .join(".config")
+                .join("cc-switch-tui")
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn get_claude_config_dir_expands_tilde_in_env_var() {
+        let _guard = lock_test_home_and_settings();
+        let _env = ConfigDirEnvGuard::new("CLAUDE_CONFIG_DIR", Some("~/.claude-custom"));
+        set_test_home_override(Some(Path::new("/tmp/claude-home-tilde")));
+
+        assert_eq!(
+            get_claude_config_dir(),
+            PathBuf::from("/tmp/claude-home-tilde").join(".claude-custom")
         );
 
         set_test_home_override(None);
