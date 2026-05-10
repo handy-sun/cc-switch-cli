@@ -325,7 +325,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: CC Switch TUI ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           draft: false
           prerelease: false
           body: |
@@ -350,7 +350,7 @@ jobs:
 
             **macOS / Linux (one-liner):**
             ```bash
-            curl -fsSL https://github.com/SaladDay/cc-switch-tui/releases/latest/download/install.sh | bash
+            curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/install.sh | bash
             ```
 
             **Windows:**
