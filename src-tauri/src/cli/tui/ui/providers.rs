@@ -77,11 +77,36 @@ pub(super) fn render_providers(
     let header_style = Style::default().fg(theme.dim).add_modifier(Modifier::BOLD);
     let table_style = Style::default();
 
-    let outer = Block::default()
-        .borders(Borders::ALL)
-        .border_type(BorderType::Plain)
-        .border_style(pane_border_style(app, Focus::Content, theme))
-        .title(texts::menu_manage_providers());
+    // Show current provider name at top-right for apps that track a current provider
+    let has_current_concept = !matches!(
+        app.app_type,
+        crate::app_config::AppType::OpenCode | crate::app_config::AppType::OpenClaw
+    );
+    let outer = if has_current_concept {
+        let current_name = data
+            .providers
+            .rows
+            .iter()
+            .find(|row| row.is_current)
+            .map(|row| data::provider_display_name(&app.app_type, row))
+            .unwrap_or_else(|| texts::tui_provider_none().to_string());
+        let title_right = Span::styled(
+            format!("{}: {}", texts::tui_label_current(), current_name),
+            Style::default().fg(theme.accent),
+        );
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Plain)
+            .border_style(pane_border_style(app, Focus::Content, theme))
+            .title(texts::menu_manage_providers())
+            .title(Line::from(title_right).right_aligned())
+    } else {
+        Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Plain)
+            .border_style(pane_border_style(app, Focus::Content, theme))
+            .title(texts::menu_manage_providers())
+    };
     frame.render_widget(outer.clone(), area);
     let inner = outer.inner(area);
 

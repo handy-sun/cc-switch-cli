@@ -1063,6 +1063,22 @@ pub mod texts {
         }
     }
 
+    pub fn tui_label_current() -> &'static str {
+        if is_chinese() {
+            "当前"
+        } else {
+            "Current"
+        }
+    }
+
+    pub fn tui_provider_none() -> &'static str {
+        if is_chinese() {
+            "无"
+        } else {
+            "None"
+        }
+    }
+
     pub fn tui_label_latest_proxy_route() -> &'static str {
         if is_chinese() {
             "最近代理路由"
