@@ -2,9 +2,10 @@
 name = "cc-switch-tui"
 version = "0.1.0"
 description = "All-in-One Assistant for Claude Code, Codex, Gemini, OpenCode, OpenClaw & Hermes"
-authors = ["Jason Young", "saladday"]
+authors = ["Jason Young", "saladday", "handy-sun"]
 license = "MIT"
 repository = "https://github.com/handy-sun/cc-switch-tui"
+keywords = ["opencode", "hermes", "claude-code", "openclaw", "llm"]
 edition = "2021"
 rust-version = "1.91.1"
 
