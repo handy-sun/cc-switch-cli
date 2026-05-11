@@ -688,6 +688,87 @@ mod tests {
     }
 
     #[test]
+    fn migration_copies_settings_json_when_target_only_has_db() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("settings.json"), "legacy-settings").unwrap();
+        fs::write(old_dir.join("cc-switch.db"), "legacy-db").unwrap();
+        fs::create_dir_all(&new_dir).unwrap();
+        fs::write(new_dir.join("cc-switch.db"), "current-db").unwrap();
+
+        assert_eq!(
+            legacy_config_migration_paths(),
+            Some((old_dir.clone(), new_dir.clone()))
+        );
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert_eq!(
+            fs::read_to_string(new_dir.join("settings.json")).unwrap(),
+            "legacy-settings"
+        );
+        assert_eq!(
+            fs::read_to_string(new_dir.join("cc-switch.db")).unwrap(),
+            "current-db",
+            "existing target database must not be overwritten"
+        );
+        assert!(new_dir.join(".migrated-from-cc-switch").exists());
+
+        set_test_home_override(None);
+    }
+
+    #[test]
+    fn migration_repairs_missing_settings_json_after_success_marker() {
+        let _guard = lock_test_home_and_settings();
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+
+        let temp = tempfile::tempdir().expect("create temp dir");
+        let home = temp.path();
+        set_test_home_override(Some(home));
+
+        let old_dir = home.join(".cc-switch");
+        let new_dir = home.join(".cc-switch-tui");
+        let marker = new_dir.join(".migrated-from-cc-switch");
+
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(old_dir.join("settings.json"), "legacy-settings").unwrap();
+        fs::create_dir_all(&new_dir).unwrap();
+        fs::write(new_dir.join("cc-switch.db"), "current-db").unwrap();
+        fs::write(&marker, "Migrated from old path").unwrap();
+
+        assert_eq!(
+            legacy_config_migration_paths(),
+            None,
+            "already-migrated directories should not prompt again"
+        );
+
+        migrate_legacy_config_dir_if_needed();
+
+        assert_eq!(
+            fs::read_to_string(new_dir.join("settings.json")).unwrap(),
+            "legacy-settings"
+        );
+        assert_eq!(
+            fs::read_to_string(new_dir.join("cc-switch.db")).unwrap(),
+            "current-db",
+            "repair must not overwrite the existing target database"
+        );
+
+        set_test_home_override(None);
+    }
+
+    #[test]
     fn migration_is_idempotent() {
         let _guard = lock_test_home_and_settings();
         let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
@@ -827,7 +908,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
         let dst_path = dst.join(entry.file_name());
         if file_type.is_dir() {
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
+        } else if !dst_path.exists() {
             fs::copy(&src_path, &dst_path)?;
         }
     }
@@ -854,15 +935,52 @@ fn copy_recent_backups(src: &Path, dst: &Path, limit: usize) -> std::io::Result<
         let dst_path = dst.join(entry.file_name());
         if entry.file_type().map_or(false, |t| t.is_dir()) {
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
+        } else if !dst_path.exists() {
             fs::copy(&src_path, &dst_path)?;
         }
     }
     Ok(())
 }
 
+fn target_allows_legacy_migration(new_dir: &Path) -> bool {
+    if !new_dir.exists() {
+        return true;
+    }
+    if !new_dir.is_dir() {
+        return false;
+    }
+
+    let entries = match fs::read_dir(new_dir) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    for entry in entries {
+        let Ok(entry) = entry else {
+            return false;
+        };
+        if entry.file_name() != "cc-switch.db" {
+            return false;
+        }
+    }
+    true
+}
+
+fn needs_legacy_json_repair(old_dir: &Path, new_dir: &Path) -> bool {
+    ["settings.json", "config.json"]
+        .iter()
+        .any(|file_name| old_dir.join(file_name).is_file() && !new_dir.join(file_name).exists())
+}
+
+fn migration_marker_allows_repair(marker: &Path) -> bool {
+    match fs::read_to_string(marker) {
+        Ok(content) => content.starts_with("Migrated from "),
+        Err(_) => false,
+    }
+}
+
 /// 提取迁移前置检查逻辑，返回 (old_dir, new_dir, marker) 若条件满足，否则 None。
-fn migration_guard() -> Option<(PathBuf, PathBuf, PathBuf)> {
+fn migration_guard(allow_repair: bool) -> Option<(PathBuf, PathBuf, PathBuf)> {
     let home = home_dir()?;
     let old_dir = home.join(".cc-switch");
     let new_dir = effective_app_config_dir_without_migration(&home)?;
@@ -875,20 +993,19 @@ fn migration_guard() -> Option<(PathBuf, PathBuf, PathBuf)> {
         return None;
     }
     if marker.exists() {
-        return None;
+        if !allow_repair
+            || !migration_marker_allows_repair(&marker)
+            || !needs_legacy_json_repair(&old_dir, &new_dir)
+        {
+            return None;
+        }
     }
     let has_contents = fs::read_dir(&old_dir).map_or(false, |mut rd| rd.next().is_some());
     if !has_contents {
         return None;
     }
-    if new_dir.exists() {
-        if !new_dir.is_dir() {
-            return None;
-        }
-        let target_has_contents = fs::read_dir(&new_dir).map_or(true, |mut rd| rd.next().is_some());
-        if target_has_contents {
-            return None;
-        }
+    if !marker.exists() && !target_allows_legacy_migration(&new_dir) {
+        return None;
     }
 
     Some((old_dir, new_dir, marker))
@@ -896,7 +1013,7 @@ fn migration_guard() -> Option<(PathBuf, PathBuf, PathBuf)> {
 
 /// 返回待迁移的旧配置目录和当前配置目录。
 pub fn legacy_config_migration_paths() -> Option<(PathBuf, PathBuf)> {
-    migration_guard().map(|(old_dir, new_dir, _)| (old_dir, new_dir))
+    migration_guard(false).map(|(old_dir, new_dir, _)| (old_dir, new_dir))
 }
 
 /// 检查是否存在尚未迁移的旧版配置目录。
@@ -910,7 +1027,7 @@ pub fn check_legacy_config_dir_migration_needed() -> bool {
 ///
 /// 错误仅记录到 stderr，绝不阻塞启动。
 pub fn skip_legacy_config_dir_migration() {
-    let (_, new_dir, marker) = match migration_guard() {
+    let (_, new_dir, marker) = match migration_guard(false) {
         Some(v) => v,
         None => return,
     };
@@ -934,7 +1051,7 @@ pub fn skip_legacy_config_dir_migration() {
 ///
 /// 非破坏性：旧目录完好保留。错误仅记录警告，绝不阻塞启动。
 pub fn migrate_legacy_config_dir_if_needed() {
-    let (old_dir, new_dir, marker) = match migration_guard() {
+    let (old_dir, new_dir, marker) = match migration_guard(true) {
         Some(v) => v,
         None => return,
     };
@@ -965,7 +1082,7 @@ fn try_migrate(old_dir: &Path, new_dir: &Path, marker: &Path) -> std::io::Result
             copy_recent_backups(&src_path, &dst_path, 3)?;
         } else if file_type.is_dir() {
             copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
+        } else if !dst_path.exists() {
             fs::copy(&src_path, &dst_path)?;
         }
     }

@@ -36,12 +36,14 @@
 
 - 源目录必须是 `$HOME/.cc-switch`，必须存在，必须是目录，并且至少包含一个条目。
 - 源目录和目标目录不能是同一路径。
-- 目标目录要么不存在，要么是空目录。
-- 目标目录不能包含 `.migrated-from-cc-switch`。
+- 目标目录要么不存在，要么是空目录；如果目标目录只有启动早期创建的
+  `cc-switch.db`，仍允许迁移补拷贝旧目录中的 JSON 配置。
+- 目标目录不能包含 `.migrated-from-cc-switch`。如果已存在程序写入的成功迁移标志，
+  但目标目录缺少旧目录里的 `settings.json` 或 `config.json`，启动时允许静默补拷贝。
 
 复制的数据：
 
-- 非符号链接文件会被复制。
+- 非符号链接文件会被复制，但不会覆盖目标目录已有文件。
 - 非符号链接目录会被递归复制。
 - `backups/` 有特殊处理：只复制最近的三个非符号链接条目。
 - 旧目录会被保留；这个迁移永远不会删除旧目录。
@@ -354,4 +356,3 @@ Download 和 V1 migration 在修改本地状态前都会执行 restore 安全检
 - 配置目录迁移标志文件是 `.migrated-from-cc-switch`，位于当前生效的目标目录。
 - `config.json.migrated` 和 `skills.json.migrated` 是本地 DB 导入后的归档文件名，和配置目录 marker 是两回事。
 - WebDAV V2 manifest compatibility 对当前布局严格校验；对旧 V2 布局会兼容缺失 DB compat 的情况，把它视为旧兼容代。
-

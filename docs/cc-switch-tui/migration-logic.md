@@ -45,12 +45,16 @@ Migration guard:
 - Source must be `$HOME/.cc-switch`, must exist, must be a directory, and must
   contain at least one entry.
 - Source and target must not be the same path.
-- Target must either not exist or exist as an empty directory.
-- Target must not contain `.migrated-from-cc-switch`.
+- Target must either not exist or exist as an empty directory; if it only
+  contains an early-created `cc-switch.db`, migration is still allowed so legacy
+  JSON config can be copied.
+- Target must not contain `.migrated-from-cc-switch`. If a program-written
+  success marker already exists but the target is missing legacy `settings.json`
+  or `config.json`, startup may silently repair the missing JSON copy.
 
 Copied data:
 
-- Non-symlink files are copied.
+- Non-symlink files are copied without overwriting existing target files.
 - Non-symlink directories are copied recursively.
 - `backups/` is special-cased: only the three most recent non-symlink entries
   are copied.
@@ -405,4 +409,3 @@ Reason:
 - WebDAV V2 manifest compatibility checks are strict for current layout and
   tolerate legacy V2 layout by treating missing DB compat as the old compatible
   generation.
-
