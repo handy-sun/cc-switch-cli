@@ -3,6 +3,14 @@ use super::*;
 const PROXY_ACTIVITY_WINDOW: usize = 48;
 const PROXY_ACTIVITY_POLL_INTERVAL_TICKS: u64 = 5;
 
+fn is_prev_app_switch_key(c: char) -> bool {
+    matches!(c, '[' | '［' | '【')
+}
+
+fn is_next_app_switch_key(c: char) -> bool {
+    matches!(c, ']' | '］' | '】')
+}
+
 impl App {
     pub(crate) fn clear_openclaw_daily_memory_search_state(&mut self) {
         self.filter.active = false;
@@ -350,10 +358,10 @@ impl App {
                 self.filter.active = true;
                 return Action::None;
             }
-            KeyCode::Char('[') => {
+            KeyCode::Char(c) if is_prev_app_switch_key(c) => {
                 return self.cycle_visible_app_type(-1);
             }
-            KeyCode::Char(']') => {
+            KeyCode::Char(c) if is_next_app_switch_key(c) => {
                 return self.cycle_visible_app_type(1);
             }
             KeyCode::Left => {

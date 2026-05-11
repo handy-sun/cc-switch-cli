@@ -414,6 +414,38 @@ mod tests {
 
     #[test]
     #[serial(home_settings)]
+    fn app_cycles_with_full_width_bracket_keys() {
+        let temp_home = TempDir::new().expect("create temp home");
+        let _env = EnvGuard::set_home(temp_home.path());
+        crate::settings::set_visible_apps(crate::settings::VisibleApps {
+            claude: true,
+            codex: true,
+            gemini: true,
+            opencode: true,
+            openclaw: true,
+            hermes: false,
+        })
+        .expect("save visible apps");
+
+        for previous_key in ['［', '【'] {
+            let mut app = App::new(Some(AppType::Claude));
+            assert!(matches!(
+                app.on_key(key(KeyCode::Char(previous_key)), &data()),
+                Action::SetAppType(AppType::OpenClaw)
+            ));
+        }
+
+        for next_key in ['］', '】'] {
+            let mut app = App::new(Some(AppType::Claude));
+            assert!(matches!(
+                app.on_key(key(KeyCode::Char(next_key)), &data()),
+                Action::SetAppType(AppType::Codex)
+            ));
+        }
+    }
+
+    #[test]
+    #[serial(home_settings)]
     fn app_cycles_with_arrow_keys_on_main_route() {
         let temp_home = TempDir::new().expect("create temp home");
         let _env = EnvGuard::set_home(temp_home.path());
