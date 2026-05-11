@@ -4,7 +4,6 @@ use crate::provider::OpenClawProviderConfig;
 use crate::settings::{effective_backup_retain_count, get_openclaw_override_dir};
 use chrono::Local;
 use indexmap::IndexMap;
-use json_five::parser::{FormatConfiguration, TrailingComma};
 use json_five::rt::parser::{
     from_str as rt_from_str, JSONKeyValuePair as RtJSONKeyValuePair,
     JSONObjectContext as RtJSONObjectContext, JSONText as RtJSONText, JSONValue as RtJSONValue,
@@ -483,25 +482,6 @@ fn derive_entry_separator(leading_ws: &str) -> String {
     String::new()
 }
 
-fn is_empty_object(value: &Value) -> bool {
-    value
-        .as_object()
-        .map(|object| object.is_empty())
-        .unwrap_or(false)
-}
-
-fn should_use_precise_empty_object_fallback(section: &str, value: &Value) -> bool {
-    match section {
-        "models" => value
-            .as_object()
-            .and_then(|models| models.get("providers"))
-            .map(is_empty_object)
-            .unwrap_or(false),
-        "tools" => is_empty_object(value),
-        _ => false,
-    }
-}
-
 fn serialize_json5_string(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     for ch in value.chars() {
@@ -583,16 +563,8 @@ fn serialize_json5_value(value: &Value, indent_level: usize) -> String {
     }
 }
 
-fn serialize_section_value(section: &str, value: &Value) -> Result<String, AppError> {
-    if should_use_precise_empty_object_fallback(section, value) {
-        return Ok(serialize_json5_value(value, 0));
-    }
-
-    json_five::to_string_formatted(
-        value,
-        FormatConfiguration::with_indent(2, TrailingComma::NONE),
-    )
-    .map_err(|e| AppError::Config(format!("Failed to serialize JSON5 section: {e}")))
+fn serialize_section_value(_section: &str, value: &Value) -> Result<String, AppError> {
+    Ok(serialize_json5_value(value, 0))
 }
 
 fn value_to_rt_value(
@@ -1301,7 +1273,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_object_fallback_targets_models_with_empty_providers_and_empty_tools() {
+    fn serialize_section_value_preserves_empty_objects() {
         let models_value = json!({
             "mode": "merge",
             "providers": {}
@@ -1310,32 +1282,23 @@ mod tests {
         let env_value = json!({
             "vars": {}
         });
-        let models_with_other_empty_object = json!({
-            "mode": "merge",
-            "providers": {
-                "demo": {
-                    "headers": {}
-                }
-            }
-        });
 
-        assert!(should_use_precise_empty_object_fallback(
-            "models",
-            &models_value
-        ));
-        assert!(should_use_precise_empty_object_fallback(
-            "tools",
-            &empty_tools_value
-        ));
-        assert!(!should_use_precise_empty_object_fallback("env", &env_value));
-        assert!(!should_use_precise_empty_object_fallback(
-            "models",
-            &models_with_other_empty_object
-        ));
+        assert_eq!(
+            serialize_section_value("models", &models_value).expect("serialize models"),
+            "{\n  mode: 'merge',\n  providers: {}\n}"
+        );
+        assert_eq!(
+            serialize_section_value("tools", &empty_tools_value).expect("serialize tools"),
+            "{}"
+        );
+        assert_eq!(
+            serialize_section_value("env", &env_value).expect("serialize env"),
+            "{\n  vars: {}\n}"
+        );
     }
 
     #[test]
-    fn serialize_section_value_uses_standard_formatter_outside_precise_fallback_shape() {
+    fn serialize_section_value_uses_json5_style_for_regular_sections() {
         let env_value = json!({
             "vars": {
                 "TOKEN": "value"
@@ -1346,24 +1309,18 @@ mod tests {
             "allow": ["Read"]
         });
 
-        let expected_env = json_five::to_string_formatted(
-            &env_value,
-            FormatConfiguration::with_indent(2, TrailingComma::NONE),
-        )
-        .expect("standard formatter should handle non-fallback shape");
-        let expected_tools = json_five::to_string_formatted(
-            &tools_value,
-            FormatConfiguration::with_indent(2, TrailingComma::NONE),
-        )
-        .expect("standard formatter should handle non-empty tools shape");
-
         let actual_env = serialize_section_value("env", &env_value)
             .expect("serialize non-fallback shape should succeed");
         let actual_tools = serialize_section_value("tools", &tools_value)
             .expect("serialize non-empty tools shape should succeed");
 
-        assert_eq!(actual_env, expected_env);
-        assert_eq!(actual_tools, expected_tools);
+        assert_eq!(actual_env, "{\n  vars: {\n    TOKEN: 'value'\n  }\n}");
+        assert_eq!(
+            actual_tools,
+            "{\n  allow: [\n    'Read'\n  ],\n  profile: 'coding'\n}"
+        );
+        json5::from_str::<Value>(&actual_env).expect("env output should remain valid JSON5");
+        json5::from_str::<Value>(&actual_tools).expect("tools output should remain valid JSON5");
     }
 
     #[test]
@@ -1681,6 +1638,59 @@ mod tests {
                     .expect("re-read backup dir")
                     .count(),
                 backup_count
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn default_model_write_handles_empty_model_catalog_entries() {
+        let source = r#"{
+  models: {
+    mode: 'merge',
+    providers: {
+      p1: {
+        models: [
+          { id: 'primary' },
+          { id: 'fallback' },
+        ],
+      },
+    },
+  },
+  agents: {
+    defaults: {
+      model: {
+        primary: 'p1/primary',
+      },
+      models: {
+        'p1/primary': {},
+        'p1/fallback': {},
+      },
+    },
+  },
+}
+"#;
+
+        with_test_paths(source, |_| {
+            set_default_model(&OpenClawDefaultModel {
+                primary: "p1/fallback".to_string(),
+                fallbacks: vec!["p1/primary".to_string()],
+                extra: HashMap::new(),
+            })
+            .expect("write default model with empty catalog entries");
+
+            let config = read_openclaw_config().expect("read rewritten config");
+            assert_eq!(
+                config["agents"]["defaults"]["model"]["primary"],
+                json!("p1/fallback")
+            );
+            assert_eq!(
+                config["agents"]["defaults"]["models"]["p1/primary"],
+                json!({})
+            );
+            assert_eq!(
+                config["agents"]["defaults"]["models"]["p1/fallback"],
+                json!({})
             );
         });
     }
