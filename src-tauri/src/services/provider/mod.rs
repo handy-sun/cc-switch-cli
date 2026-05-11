@@ -1094,6 +1094,13 @@ impl ProviderService {
 
     /// 获取当前供应商 ID
     pub fn current(state: &AppState, app_type: AppType) -> Result<String, AppError> {
+        if app_type == AppType::Hermes {
+            return Ok(crate::hermes_config::get_model_config()?
+                .and_then(|model| model.provider)
+                .map(|provider| provider.trim().to_string())
+                .filter(|provider| !provider.is_empty())
+                .unwrap_or_default());
+        }
         if app_type.is_additive_mode() {
             return Ok(String::new());
         }

@@ -993,6 +993,37 @@ fn add_first_provider_sets_current() {
 
 #[test]
 #[serial]
+fn current_reads_hermes_model_provider_from_live_config() {
+    let temp_home = TempDir::new().expect("create temp home");
+    let _env = EnvGuard::set_home(temp_home.path());
+
+    let config_path = crate::hermes_config::get_hermes_config_path();
+    std::fs::create_dir_all(config_path.parent().expect("hermes config parent"))
+        .expect("create hermes config dir");
+    std::fs::write(
+        &config_path,
+        r#"
+model:
+  provider: litellm
+  default: claude-sonnet-4
+"#,
+    )
+    .expect("write hermes config");
+
+    let mut config = MultiAppConfig::default();
+    config.ensure_app(&AppType::Hermes);
+    let state = state_from_config(config);
+
+    let current_id = ProviderService::current(&state, AppType::Hermes)
+        .expect("read Hermes current provider from model.provider");
+    assert_eq!(
+        current_id, "litellm",
+        "Hermes current provider should come from live config model.provider"
+    );
+}
+
+#[test]
+#[serial]
 fn current_prefers_effective_current_from_local_settings_without_mutating_config() {
     let temp_home = TempDir::new().expect("create temp home");
     let _env = EnvGuard::set_home(temp_home.path());
