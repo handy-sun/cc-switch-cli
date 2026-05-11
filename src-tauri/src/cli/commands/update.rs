@@ -32,8 +32,24 @@ const USER_AGENT: &str = concat!(
 #[derive(Args, Debug, Clone)]
 pub struct UpdateCommand {
     /// Target version (example: v4.6.2). Defaults to latest release.
-    #[arg(long)]
-    pub version: Option<String>,
+    #[arg(
+        long = "target-version",
+        value_name = "VERSION",
+        conflicts_with = "target-tag"
+    )]
+    pub target_version: Option<String>,
+
+    /// Target version (example: v4.6.2). Defaults to latest release.
+    #[arg(value_name = "VERSION", id = "target-tag")]
+    pub target_tag: Option<String>,
+}
+
+impl UpdateCommand {
+    fn requested_version(&self) -> Option<&str> {
+        self.target_version
+            .as_deref()
+            .or(self.target_tag.as_deref())
+    }
 }
 
 struct DownloadedAsset {
@@ -132,9 +148,10 @@ pub fn execute(cmd: UpdateCommand) -> Result<(), AppError> {
 
 async fn execute_async(cmd: UpdateCommand) -> Result<(), AppError> {
     let current_version = env!("CARGO_PKG_VERSION");
-    let explicit_version = cmd.version.as_deref().is_some_and(|v| !v.trim().is_empty());
+    let requested_version = cmd.requested_version();
+    let explicit_version = requested_version.is_some_and(|v| !v.trim().is_empty());
     let client = create_http_client()?;
-    let release = resolve_target_release(&client, REPO_URL, cmd.version.as_deref()).await?;
+    let release = resolve_target_release(&client, REPO_URL, requested_version).await?;
     let target_tag = release.target_tag().to_string();
     let target_version = target_tag.trim_start_matches('v');
 
@@ -150,7 +167,7 @@ async fn execute_async(cmd: UpdateCommand) -> Result<(), AppError> {
         println!(
             "{}",
             info(&format!(
-                "Current version v{current_version} is newer than target {target_tag}; skipping automatic downgrade. Use `cc-switch update --version {target_tag}` to force."
+                "Current version v{current_version} is newer than target {target_tag}; skipping automatic downgrade. Use `cc-switch update {target_tag}` to force."
             ))
         );
         return Ok(());

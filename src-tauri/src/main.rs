@@ -1,7 +1,7 @@
 use cc_switch_lib::cli::{Cli, Commands};
 use cc_switch_lib::AppError;
 use clap::Parser;
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use std::process;
 
 fn main() {
@@ -56,7 +56,7 @@ fn run(cli: Cli) -> Result<(), AppError> {
 
 /// 提示用户是否迁移旧版 ~/.cc-switch/ 配置目录到 ~/.cc-switch-tui/
 ///
-/// 用户选 Y（默认）：后续 get_app_config_dir() 自动执行迁移。
+/// 用户选 Y（默认）：立即执行迁移，避免启动恢复先创建数据库占位文件。
 /// 用户选 N：写入 .migrated-from-cc-switch 标记，永不再次提示。
 fn prompt_legacy_config_migration() {
     let Some((old_dir, new_dir)) = cc_switch_lib::legacy_config_migration_paths() else {
@@ -71,21 +71,25 @@ fn prompt_legacy_config_migration() {
     );
     eprint!("[Y/n] ");
     let _ = io::stderr().flush();
-    let mut input = String::new();
-    if io::stdin().read_line(&mut input).is_err() {
-        // Can't read input, proceed with auto-migrate
-        return;
-    }
-
-    let answer = input.trim().to_lowercase();
-    if answer.is_empty() || answer == "y" || answer == "yes" {
-        // User approved, auto-migrate will happen inside get_app_config_dir()
+    let should_migrate = read_legacy_migration_answer(io::stdin().lock());
+    if should_migrate {
+        cc_switch_lib::migrate_legacy_config_dir_if_needed();
         return;
     }
 
     // User declined, write skip marker to prevent future prompts
     cc_switch_lib::skip_legacy_config_dir_migration();
     eprintln!("cc-switch: migration skipped (marker written)");
+}
+
+fn read_legacy_migration_answer<R: BufRead>(mut reader: R) -> bool {
+    let mut input = String::new();
+    if reader.read_line(&mut input).is_err() {
+        return true;
+    }
+
+    let answer = input.trim().to_lowercase();
+    answer.is_empty() || answer == "y" || answer == "yes"
 }
 
 fn command_requires_startup_state(command: &Option<Commands>) -> bool {
@@ -113,24 +117,34 @@ mod tests {
     use std::{env, ffi::OsString, path::Path};
 
     struct ConfigDirEnvGuard {
-        original: Option<OsString>,
+        original_legacy: Option<OsString>,
+        original_tui: Option<OsString>,
     }
 
     impl ConfigDirEnvGuard {
         fn set(path: &Path) -> Self {
-            let original = env::var_os("CC_SWITCH_CONFIG_DIR");
+            let original_legacy = env::var_os("CC_SWITCH_CONFIG_DIR");
+            let original_tui = env::var_os("CC_SWITCH_TUI_CONFIG_DIR");
             unsafe {
                 env::set_var("CC_SWITCH_CONFIG_DIR", path);
+                env::remove_var("CC_SWITCH_TUI_CONFIG_DIR");
             }
-            Self { original }
+            Self {
+                original_legacy,
+                original_tui,
+            }
         }
     }
 
     impl Drop for ConfigDirEnvGuard {
         fn drop(&mut self) {
-            match self.original.as_ref() {
+            match self.original_legacy.as_ref() {
                 Some(value) => unsafe { env::set_var("CC_SWITCH_CONFIG_DIR", value) },
                 None => unsafe { env::remove_var("CC_SWITCH_CONFIG_DIR") },
+            }
+            match self.original_tui.as_ref() {
+                Some(value) => unsafe { env::set_var("CC_SWITCH_TUI_CONFIG_DIR", value) },
+                None => unsafe { env::remove_var("CC_SWITCH_TUI_CONFIG_DIR") },
             }
         }
     }

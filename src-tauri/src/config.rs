@@ -15,6 +15,15 @@ pub(crate) fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+fn migrate_legacy_config_dir_once() {
+    // AtomicBool guard: 进程内只跑一次，避免测试并发和重复 stat 调用
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static MIGRATED: AtomicBool = AtomicBool::new(false);
+    if !MIGRATED.swap(true, Ordering::Relaxed) {
+        migrate_legacy_config_dir_if_needed();
+    }
+}
+
 /// If `path` starts with `~` / `~/`, replace the tilde with the home directory.
 /// Otherwise return the path unchanged.
 fn expand_tilde(path: PathBuf) -> PathBuf {
@@ -119,6 +128,7 @@ pub fn get_app_config_dir() -> PathBuf {
     if let Some(custom) = env::var_os("CC_SWITCH_TUI_CONFIG_DIR") {
         let custom = PathBuf::from(custom);
         if !custom.to_string_lossy().trim().is_empty() {
+            migrate_legacy_config_dir_once();
             return expand_tilde(custom);
         }
     }
@@ -144,14 +154,9 @@ pub fn get_app_config_dir() -> PathBuf {
         .expect("无法获取用户主目录")
         .join(".cc-switch-tui");
 
-    // 一次性迁移老旧 ~/.cc-switch/ → ~/.cc-switch-tui/
-    // 嵌入 get_app_config_dir 内部，杜绝"新路径先于迁移创建"窗口
-    // AtomicBool guard: 进程内只跑一次，避免测试并发和重复 stat 调用
-    use std::sync::atomic::{AtomicBool, Ordering};
-    static MIGRATED: AtomicBool = AtomicBool::new(false);
-    if !MIGRATED.swap(true, Ordering::Relaxed) {
-        migrate_legacy_config_dir_if_needed();
-    }
+    // 一次性迁移老旧 ~/.cc-switch/ → 当前应用配置目录。
+    // 嵌入 get_app_config_dir 内部，杜绝"新路径先于迁移创建"窗口。
+    migrate_legacy_config_dir_once();
 
     path
 }
