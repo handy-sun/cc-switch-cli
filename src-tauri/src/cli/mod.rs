@@ -181,7 +181,7 @@ mod tests {
     fn version_string_includes_dirty_suffix_for_unclean_builds() {
         let version = format_version_string(
             "cc-switch-tui",
-            "0.1.0",
+            "0.1.1",
             Some("abc1234"),
             Some("2026-05-11 12:34:56 +08:00"),
             false,
@@ -189,15 +189,15 @@ mod tests {
 
         assert_eq!(
             version,
-            "cc-switch-tui 0.1.0 (abc1234-dirty 2026-05-11 12:34:56 +08:00)"
+            "cc-switch-tui 0.1.1 (abc1234-dirty 2026-05-11 12:34:56 +08:00)"
         );
     }
 
     #[test]
     fn version_string_omits_metadata_when_build_env_is_missing() {
-        let version = format_version_string("cc-switch-tui", "0.1.0", None, None, true);
+        let version = format_version_string("cc-switch-tui", "0.1.1", None, None, true);
 
-        assert_eq!(version, "cc-switch-tui 0.1.0");
+        assert_eq!(version, "cc-switch-tui 0.1.1");
     }
 
     #[test]

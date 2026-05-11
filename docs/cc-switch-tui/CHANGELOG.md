@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1] — 2026-05-11
+
+### Added
+
+- Publish the Rust crate to crates.io during tagged release workflows.
+
+### Fixed
+
+- Fix OpenClaw provider switching and default model writes when valid upstream config uses flexible default model shapes or empty object values.
+- Keep TUI app switching responsive during startup and accept localized app switch hotkey labels.
+- Run legacy config directory migration before startup database initialization.
+
 ## [0.1.0] — 2026-05-10
 
 Initial release of the renamed cc-switch-tui fork.
@@ -28,4 +40,5 @@ Initial release of the renamed cc-switch-tui fork.
 
 - Sponsor section from README files and partner assets
 
+[0.1.1]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.0
