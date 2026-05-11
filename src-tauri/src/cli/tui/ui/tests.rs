@@ -1496,6 +1496,7 @@ fn home_shows_local_env_check_section() {
     let all = all_text(&buf);
 
     assert!(all.contains("Local environment check"));
+    assert!(all.contains("Hermes"), "{all}");
     assert!(!all.contains("Session Context"));
 }
 

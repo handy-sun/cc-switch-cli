@@ -55,7 +55,7 @@ pub fn default_visible_apps() -> VisibleApps {
         gemini: false,
         opencode: true,
         openclaw: true,
-        hermes: false,
+        hermes: true,
     }
 }
 
