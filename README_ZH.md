@@ -102,32 +102,34 @@ curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/i
 
 ```bash
 # 下载 Universal Binary（推荐，支持 Apple Silicon + Intel）
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-darwin-universal.tar.gz
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-darwin-universal.tar.gz"
 
 # 解压
-tar -xzf cc-switch-tui-darwin-universal.tar.gz
+tar -xzf "cc-switch-tui-${VERSION}-darwin-universal.tar.gz"
 
 # 添加执行权限
-chmod +x cc-switch
+chmod +x cc-switch-tui
 
 # 移动到 PATH
 sudo mv cc-switch-tui /usr/local/bin/
 
 # 如遇 "无法验证开发者" 提示
-xattr -cr /usr/local/bin/cc-switch
+xattr -cr /usr/local/bin/cc-switch-tui
 ```
 
 #### Linux (x64)
 
 ```bash
 # 下载
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-x64-musl.tar.gz
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz"
 
 # 解压
-tar -xzf cc-switch-tui-linux-x64-musl.tar.gz
+tar -xzf "cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz"
 
 # 添加执行权限
-chmod +x cc-switch
+chmod +x cc-switch-tui
 
 # 移动到 PATH
 sudo mv cc-switch-tui /usr/local/bin/
@@ -137,9 +139,10 @@ sudo mv cc-switch-tui /usr/local/bin/
 
 ```bash
 # 适用于树莓派或 ARM 服务器
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-arm64-musl.tar.gz
-tar -xzf cc-switch-tui-linux-arm64-musl.tar.gz
-chmod +x cc-switch
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz"
+tar -xzf "cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz"
+chmod +x cc-switch-tui
 sudo mv cc-switch-tui /usr/local/bin/
 ```
 
@@ -147,7 +150,7 @@ sudo mv cc-switch-tui /usr/local/bin/
 
 ```powershell
 # 下载 zip 文件
-# https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-windows-x64.zip
+# https://github.com/handy-sun/cc-switch-tui/releases/download/vX.Y.Z/cc-switch-tui-vX.Y.Z-windows-x64.zip
 
 # 解压后将 cc-switch-tui.exe 移动到 PATH 目录，例如：
 move cc-switch-tui.exe C:\Windows\System32\

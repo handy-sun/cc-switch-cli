@@ -106,32 +106,34 @@ This installs  to `~/.local/bin`. Set `CC_SWITCH_INSTALL_DIR` to change the targ
 
 ```bash
 # Download Universal Binary (recommended, supports Apple Silicon + Intel)
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-darwin-universal.tar.gz
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-darwin-universal.tar.gz"
 
 # Extract
-tar -xzf cc-switch-tui-darwin-universal.tar.gz
+tar -xzf "cc-switch-tui-${VERSION}-darwin-universal.tar.gz"
 
 # Add execute permission
-chmod +x cc-switch
+chmod +x cc-switch-tui
 
 # Move to PATH
 sudo mv cc-switch-tui /usr/local/bin/
 
 # If you encounter "cannot be verified" warning
-xattr -cr /usr/local/bin/cc-switch
+xattr -cr /usr/local/bin/cc-switch-tui
 ```
 
 #### Linux (x64)
 
 ```bash
 # Download
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-x64-musl.tar.gz
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz"
 
 # Extract
-tar -xzf cc-switch-tui-linux-x64-musl.tar.gz
+tar -xzf "cc-switch-tui-${VERSION}-linux-x64-musl.tar.gz"
 
 # Add execute permission
-chmod +x cc-switch
+chmod +x cc-switch-tui
 
 # Move to PATH
 sudo mv cc-switch-tui /usr/local/bin/
@@ -141,9 +143,10 @@ sudo mv cc-switch-tui /usr/local/bin/
 
 ```bash
 # For Raspberry Pi or ARM servers
-curl -LO https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-linux-arm64-musl.tar.gz
-tar -xzf cc-switch-tui-linux-arm64-musl.tar.gz
-chmod +x cc-switch
+VERSION="$(curl -fsSL https://github.com/handy-sun/cc-switch-tui/releases/latest/download/latest.json | sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' | head -n 1)"
+curl -LO "https://github.com/handy-sun/cc-switch-tui/releases/download/${VERSION}/cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz"
+tar -xzf "cc-switch-tui-${VERSION}-linux-arm64-musl.tar.gz"
+chmod +x cc-switch-tui
 sudo mv cc-switch-tui /usr/local/bin/
 ```
 
@@ -151,7 +154,7 @@ sudo mv cc-switch-tui /usr/local/bin/
 
 ```powershell
 # Download the zip file
-# https://github.com/handy-sun/cc-switch-tui/releases/latest/download/cc-switch-tui-windows-x64.zip
+# https://github.com/handy-sun/cc-switch-tui/releases/download/vX.Y.Z/cc-switch-tui-vX.Y.Z-windows-x64.zip
 
 # After extracting, move cc-switch-tui.exe to a PATH directory, e.g.:
 move cc-switch-tui.exe C:\Windows\System32\

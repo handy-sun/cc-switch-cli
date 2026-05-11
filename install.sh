@@ -14,6 +14,7 @@ VERSION="${1:-latest}"
 TMP_DIR=""
 ASSET_NAME=""
 ASSET_CANDIDATES=()
+RESOLVED_VERSION=""
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -217,21 +218,56 @@ download_asset() {
   fi
 }
 
+resolve_latest_version() {
+  local manifest_url manifest_file resolved
+  manifest_url="${RELEASES_URL}/latest/download/latest.json"
+  manifest_file="${TMP_DIR}/latest.json"
+
+  info "Resolving latest release version"
+  download_asset "${manifest_url}" "${manifest_file}"
+
+  resolved="$(
+    sed -nE 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "${manifest_file}" \
+      | head -n 1
+  )"
+  if [[ -z "${resolved}" || ! "${resolved}" =~ ^v ]]; then
+    err "Unable to resolve latest release version from latest.json."
+    exit 1
+  fi
+
+  RESOLVED_VERSION="${resolved}"
+}
+
+versioned_asset_name() {
+  local asset_name="$1"
+  local version="$2"
+
+  if [[ "${asset_name}" == cc-switch-tui-"${version}"-* ]]; then
+    printf '%s' "${asset_name}"
+    return 0
+  fi
+
+  printf 'cc-switch-tui-%s-%s' "${version}" "${asset_name#cc-switch-tui-}"
+}
+
 download() {
-  local asset_name url dest
+  local asset_name resolved_asset_name url dest
+
+  if [[ "${VERSION}" == "latest" ]]; then
+    resolve_latest_version
+  else
+    RESOLVED_VERSION="${VERSION}"
+  fi
 
   for asset_name in "${ASSET_CANDIDATES[@]}"; do
-    if [[ "${VERSION}" == "latest" ]]; then
-      url="${RELEASES_URL}/latest/download/${asset_name}"
-    else
-      url="${RELEASES_URL}/download/${VERSION}/${asset_name}"
-    fi
-    dest="${TMP_DIR}/${asset_name}"
+    resolved_asset_name="$(versioned_asset_name "${asset_name}" "${RESOLVED_VERSION}")"
+    url="${RELEASES_URL}/download/${RESOLVED_VERSION}/${resolved_asset_name}"
+    dest="${TMP_DIR}/${resolved_asset_name}"
 
-    info "Downloading ${asset_name}"
+    info "Downloading ${resolved_asset_name}"
 
     if download_asset "${url}" "${dest}"; then
-      ASSET_NAME="${asset_name}"
+      ASSET_NAME="${resolved_asset_name}"
       return 0
     fi
 

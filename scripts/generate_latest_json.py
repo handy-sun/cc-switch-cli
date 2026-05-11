@@ -20,10 +20,14 @@ def file_exists(release_dir: Path, filename: str) -> bool:
     ).is_file()
 
 
-def add_mac_platforms(manifest: dict, release_dir: Path, base_url: str):
-    universal = "cc-switch-tui-darwin-universal.tar.gz"
-    x64 = "cc-switch-tui-darwin-x64.tar.gz"
-    arm64 = "cc-switch-tui-darwin-arm64.tar.gz"
+def versioned_name(version: str, suffix: str) -> str:
+    return f"cc-switch-tui-{version}-{suffix}"
+
+
+def add_mac_platforms(manifest: dict, release_dir: Path, base_url: str, version: str):
+    universal = versioned_name(version, "darwin-universal.tar.gz")
+    x64 = versioned_name(version, "darwin-x64.tar.gz")
+    arm64 = versioned_name(version, "darwin-arm64.tar.gz")
 
     if file_exists(release_dir, x64):
         manifest["platforms"]["darwin-x86_64"] = asset_entry(release_dir, base_url, x64)
@@ -46,10 +50,14 @@ def add_linux_platform(
     manifest: dict,
     release_dir: Path,
     base_url: str,
+    version: str,
     platform_key: str,
-    musl_name: str,
-    glibc_name: str,
+    musl_suffix: str,
+    glibc_suffix: str,
 ):
+    musl_name = versioned_name(version, musl_suffix)
+    glibc_name = versioned_name(version, glibc_suffix)
+
     if file_exists(release_dir, musl_name):
         entry: dict[str, object] = dict(asset_entry(release_dir, base_url, musl_name))
         if file_exists(release_dir, glibc_name):
@@ -86,25 +94,27 @@ def main() -> int:
         "platforms": {},
     }
 
-    add_mac_platforms(manifest, release_dir, base_url)
+    add_mac_platforms(manifest, release_dir, base_url, version)
     add_linux_platform(
         manifest,
         release_dir,
         base_url,
+        version,
         "linux-x86_64",
-        "cc-switch-tui-linux-x64-musl.tar.gz",
-        "cc-switch-tui-linux-x64.tar.gz",
+        "linux-x64-musl.tar.gz",
+        "linux-x64.tar.gz",
     )
     add_linux_platform(
         manifest,
         release_dir,
         base_url,
+        version,
         "linux-aarch64",
-        "cc-switch-tui-linux-arm64-musl.tar.gz",
-        "cc-switch-tui-linux-arm64.tar.gz",
+        "linux-arm64-musl.tar.gz",
+        "linux-arm64.tar.gz",
     )
 
-    windows = "cc-switch-tui-windows-x64.zip"
+    windows = versioned_name(version, "windows-x64.zip")
     if file_exists(release_dir, windows):
         manifest["platforms"]["windows-x86_64"] = asset_entry(
             release_dir, base_url, windows
