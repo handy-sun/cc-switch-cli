@@ -190,6 +190,15 @@ impl TestWebDavServer {
             .files
             .insert(path.to_string(), bytes);
     }
+
+    fn read_file(&self, path: &str) -> Option<Vec<u8>> {
+        self.state
+            .lock()
+            .expect("lock test WebDAV state for file read")
+            .files
+            .get(path)
+            .cloned()
+    }
 }
 
 impl Drop for TestWebDavServer {
@@ -463,6 +472,7 @@ fn assert_upload_artifact_puts(snapshot: &ServerSnapshot) {
         vec![
             "/dav/sync-root/v2/db-v6/default-profile/db.sql".to_string(),
             "/dav/sync-root/v2/db-v6/default-profile/skills.zip".to_string(),
+            "/dav/sync-root/v2/db-v6/default-profile/settings.json".to_string(),
             "/dav/sync-root/v2/db-v6/default-profile/manifest.json".to_string()
         ],
         "unexpected upload PUT sequence: {snapshot:?}"
@@ -1134,6 +1144,27 @@ fn webdav_migrate_v1_to_v2_applies_settings_sync() {
             .and_then(|value| value.as_str()),
         Some(server.base_url.as_str()),
         "local WebDAV connection settings must survive applying v1 settings sync"
+    );
+
+    let remote_settings_path = "/dav/sync-root/v2/db-v6/default-profile/settings.json";
+    let remote_settings = server
+        .read_file(remote_settings_path)
+        .unwrap_or_else(|| panic!("migrated V2 remote should include {remote_settings_path}"));
+    let remote_value: serde_json::Value =
+        serde_json::from_slice(&remote_settings).expect("parse remote settings.json");
+    assert_eq!(remote_value["language"], "zh");
+    assert_eq!(remote_value["skillSyncMethod"], "copy");
+
+    let remote_manifest = server
+        .read_file("/dav/sync-root/v2/db-v6/default-profile/manifest.json")
+        .expect("read migrated V2 manifest");
+    let remote_manifest: serde_json::Value =
+        serde_json::from_slice(&remote_manifest).expect("parse migrated V2 manifest");
+    assert!(
+        remote_manifest
+            .pointer("/artifacts/settings.json")
+            .is_some(),
+        "migrated V2 manifest should track settings.json"
     );
 }
 

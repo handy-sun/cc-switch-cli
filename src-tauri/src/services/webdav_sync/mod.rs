@@ -2,7 +2,7 @@
 //!
 //! Manifest-based synchronization on top of the WebDAV transport helpers.
 //! Current layout uses `{root}/v2/db-v6/{profile}/`, with legacy fallback to
-//! `{root}/v2/{profile}/`. Artifact set: `db.sql` + `skills.zip`.
+//! `{root}/v2/{profile}/`. Artifact set: `db.sql` + `skills.zip` + `settings.json`.
 
 mod archive;
 
@@ -18,7 +18,7 @@ use crate::error::AppError;
 use crate::services::webdav;
 use crate::settings::{
     get_settings, get_webdav_sync_settings, update_settings, update_webdav_sync_status,
-    CustomEndpoint, SecuritySettings, WebDavSyncSettings, WebDavSyncStatus,
+    AppSettings, CustomEndpoint, SecuritySettings, WebDavSyncSettings, WebDavSyncStatus,
 };
 
 use self::archive::{restore_skills_zip, zip_skills_ssot, SkillsBackup};
@@ -55,6 +55,7 @@ const DB_COMPAT_VERSION: u32 = 6;
 const LEGACY_DB_COMPAT_VERSION: u32 = 5;
 const REMOTE_DB_SQL: &str = "db.sql";
 const REMOTE_SKILLS_ZIP: &str = "skills.zip";
+const REMOTE_SETTINGS_JSON: &str = "settings.json";
 const REMOTE_MANIFEST: &str = "manifest.json";
 const REMOTE_V1_SETTINGS_SYNC: &str = "settings.sync.json";
 
@@ -110,6 +111,7 @@ struct ArtifactMeta {
 struct LocalSnapshot {
     db_sql: Vec<u8>,
     skills_zip: Vec<u8>,
+    settings_json: Vec<u8>,
     manifest_bytes: Vec<u8>,
     manifest_hash: String,
 }
@@ -182,6 +184,15 @@ async fn upload() -> Result<WebDavSyncSummary, AppError> {
     let skills_url = build_artifact_url(&settings, RemoteLayout::Current, REMOTE_SKILLS_ZIP)?;
     webdav::put_bytes(&skills_url, &auth, snapshot.skills_zip, "application/zip").await?;
 
+    let settings_url = build_artifact_url(&settings, RemoteLayout::Current, REMOTE_SETTINGS_JSON)?;
+    webdav::put_bytes(
+        &settings_url,
+        &auth,
+        snapshot.settings_json,
+        "application/json",
+    )
+    .await?;
+
     // 上传 manifest（最后上传，确保 artifacts 已就绪）
     let manifest_url = build_artifact_url(&settings, RemoteLayout::Current, REMOTE_MANIFEST)?;
     webdav::put_bytes(
@@ -245,6 +256,23 @@ async fn download() -> Result<WebDavSyncSummary, AppError> {
             &snapshot.manifest.artifacts,
         )
         .await?;
+        let incoming_settings = if snapshot
+            .manifest
+            .artifacts
+            .contains_key(REMOTE_SETTINGS_JSON)
+        {
+            let settings_json = download_and_verify(
+                &settings,
+                &auth,
+                snapshot.layout,
+                REMOTE_SETTINGS_JSON,
+                &snapshot.manifest.artifacts,
+            )
+            .await?;
+            Some(parse_settings_json(&settings_json)?)
+        } else {
+            None
+        };
 
         {
             let _guard = crate::services::state_coordination::acquire_restore_mutation_guard()
@@ -252,6 +280,9 @@ async fn download() -> Result<WebDavSyncSummary, AppError> {
                 .map_err(AppError::Message)?;
             ensure_restore_allowed().await?;
             apply_snapshot(&db_sql, &skills_zip)?;
+            if let Some(incoming_settings) = incoming_settings {
+                apply_settings_preserving_webdav(incoming_settings)?;
+            }
         }
         persist_sync_success_best_effort(&mut settings, &manifest_hash, snapshot.manifest_etag);
         cleanup_v1_remote(&settings, &auth).await;
@@ -345,6 +376,9 @@ fn build_local_snapshot(_settings: &WebDavSyncSettings) -> Result<LocalSnapshot,
     let skills_zip =
         std::fs::read(&skills_zip_path).map_err(|e| AppError::io(&skills_zip_path, e))?;
 
+    let settings_json = serde_json::to_vec_pretty(&get_settings())
+        .map_err(|e| AppError::JsonSerialize { source: e })?;
+
     // 构建 artifacts map
     let mut artifacts = BTreeMap::new();
     artifacts.insert(
@@ -359,6 +393,13 @@ fn build_local_snapshot(_settings: &WebDavSyncSettings) -> Result<LocalSnapshot,
         ArtifactMeta {
             sha256: sha256_hex(&skills_zip),
             size: skills_zip.len() as u64,
+        },
+    );
+    artifacts.insert(
+        REMOTE_SETTINGS_JSON.to_string(),
+        ArtifactMeta {
+            sha256: sha256_hex(&settings_json),
+            size: settings_json.len() as u64,
         },
     );
 
@@ -382,6 +423,7 @@ fn build_local_snapshot(_settings: &WebDavSyncSettings) -> Result<LocalSnapshot,
     Ok(LocalSnapshot {
         db_sql,
         skills_zip,
+        settings_json,
         manifest_bytes,
         manifest_hash,
     })
@@ -611,6 +653,19 @@ fn apply_snapshot(db_sql: &[u8], skills_zip: &[u8]) -> Result<(), AppError> {
     }
 
     Ok(())
+}
+
+fn parse_settings_json(raw: &[u8]) -> Result<AppSettings, AppError> {
+    serde_json::from_slice(raw).map_err(|e| AppError::Json {
+        path: REMOTE_SETTINGS_JSON.to_string(),
+        source: e,
+    })
+}
+
+fn apply_settings_preserving_webdav(mut incoming: AppSettings) -> Result<(), AppError> {
+    let current = get_settings();
+    incoming.webdav_sync = current.webdav_sync;
+    update_settings(incoming)
 }
 
 // ---------------------------------------------------------------------------
