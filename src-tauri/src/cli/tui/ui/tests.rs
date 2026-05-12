@@ -7495,6 +7495,32 @@ fn openclaw_provider_list_hides_marker_for_removed_row() {
 }
 
 #[test]
+fn openclaw_provider_list_uses_active_marker_for_default_model_row() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::OpenClaw));
+    app.route = Route::Providers;
+    app.focus = Focus::Content;
+
+    let mut data = minimal_data(&app.app_type);
+    data.providers.rows[0].is_default_model = true;
+    data.providers.rows[0].is_in_config = true;
+
+    let buf = render(&app, &data);
+    let provider_line = (0..buf.area.height)
+        .map(|y| line_at(&buf, y))
+        .find(|line| line.contains("Demo Provider"))
+        .expect("provider row rendered");
+
+    assert!(
+        provider_line.contains(texts::tui_marker_active()),
+        "{provider_line}"
+    );
+    assert!(!provider_line.contains("*"), "{provider_line}");
+}
+
+#[test]
 fn openclaw_provider_list_treats_live_only_marker_as_tracked_marker() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");

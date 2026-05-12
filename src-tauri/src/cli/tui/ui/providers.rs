@@ -199,7 +199,7 @@ pub(super) fn render_providers(
     let rows = visible.iter().enumerate().map(|(idx, row)| {
         let marker = if matches!(app.app_type, crate::app_config::AppType::OpenClaw) {
             if row.is_default_model {
-                "*"
+                texts::tui_marker_active()
             } else if row.is_in_config {
                 "+"
             } else {
