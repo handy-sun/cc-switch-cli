@@ -165,7 +165,26 @@ move cc-switch-tui.exe C:\Windows\System32\
 
 </details>
 
-### Method 2: Build from Source
+### Method 2: Nix Flake
+
+Use the package from this repository in another flake:
+
+```nix
+{
+  inputs.cc-switch-tui = {
+    url = "github:handy-sun/cc-switch-tui";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+}
+```
+
+`inputs.nixpkgs.follows = "nixpkgs"` is recommended for normal NixOS or Home Manager setups. The package is built with `pkgs.rustPlatform.buildRustPackage`, so following your top-level `nixpkgs` means the Rust compiler, Cargo, linker inputs, and system libraries come from the same nixpkgs revision as the rest of your system.
+
+If you omit `follows`, this project uses the nixpkgs revision pinned in its own `flake.lock`, which can be useful when you want to reproduce the upstream build environment exactly. In either case, Rust crate dependency versions still come from `src-tauri/Cargo.lock`; `follows` changes the Nix toolchain and package set, not the locked Cargo dependency graph.
+
+If a build only fails with `follows` enabled, try removing it to check whether the issue is caused by a nixpkgs version difference.
+
+### Method 3: Build from Source
 
 **Prerequisites:**
 - Rust 1.85+ ([install via rustup](https://rustup.rs/))

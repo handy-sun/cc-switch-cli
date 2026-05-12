@@ -161,7 +161,26 @@ move cc-switch-tui.exe C:\Windows\System32\
 
 </details>
 
-### 方法 2：从源码构建
+### 方法 2：Nix Flake
+
+在其他 flake 中使用本仓库提供的包：
+
+```nix
+{
+  inputs.cc-switch-tui = {
+    url = "github:handy-sun/cc-switch-tui";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+}
+```
+
+普通 NixOS 或 Home Manager 配置建议加上 `inputs.nixpkgs.follows = "nixpkgs"`。本仓库的包通过 `pkgs.rustPlatform.buildRustPackage` 构建，因此跟随顶层 `nixpkgs` 后，Rust 编译器、Cargo、链接输入和系统库都会来自你系统配置里的同一份 nixpkgs。
+
+如果不加 `follows`，cc-switch-tui 会使用本仓库 `flake.lock` 锁定的 nixpkgs，这适合需要尽量复现上游构建环境的场景。无论是否加 `follows`，Rust crate 依赖版本仍由 `src-tauri/Cargo.lock` 锁定；`follows` 改变的是 Nix 工具链和包集合，不会改 Cargo 依赖图。
+
+如果只有加了 `follows` 才构建失败，可以先去掉它验证问题是否来自 nixpkgs 版本差异。
+
+### 方法 3：从源码构建
 
 **前提条件：**
 - Rust 1.85+（[通过 rustup 安装](https://rustup.rs/)）
