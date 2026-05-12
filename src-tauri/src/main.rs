@@ -45,6 +45,9 @@ fn run(cli: Cli) -> Result<(), AppError> {
         Some(Commands::Skills(cmd)) => cc_switch_lib::cli::commands::skills::execute(cmd, cli.app),
         Some(Commands::Config(cmd)) => cc_switch_lib::cli::commands::config::execute(cmd, cli.app),
         Some(Commands::Proxy(cmd)) => cc_switch_lib::cli::commands::proxy::execute(cmd),
+        Some(Commands::Failover(cmd)) => {
+            cc_switch_lib::cli::commands::failover::execute(cmd, cli.app)
+        }
         #[cfg(unix)]
         Some(Commands::Start(cmd)) => cc_switch_lib::cli::commands::start::execute(cmd),
         Some(Commands::Env(cmd)) => cc_switch_lib::cli::commands::env::execute(cmd, cli.app),
@@ -235,7 +238,7 @@ mod tests {
         let err = initialize_startup_state_if_needed(&cli.command)
             .expect_err("provider command should still require startup state");
         assert!(
-            err.to_string().contains("数据库版本过新"),
+            err.to_string().contains("由较新版本的 CC Switch 创建"),
             "unexpected error: {err}"
         );
     }

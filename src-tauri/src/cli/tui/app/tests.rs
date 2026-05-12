@@ -95,8 +95,31 @@ mod tests {
         KeyEvent::new(code, KeyModifiers::CONTROL)
     }
 
+    fn alt(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::ALT)
+    }
+
     fn data() -> UiData {
         UiData::default()
+    }
+
+    fn claude_provider_row(id: &str) -> ProviderRow {
+        ProviderRow {
+            id: id.to_string(),
+            provider: Provider::with_id(
+                id.to_string(),
+                "Provider One".to_string(),
+                json!({"env":{"ANTHROPIC_BASE_URL":"https://example.com","ANTHROPIC_AUTH_TOKEN":"sk-demo"}}),
+                None,
+            ),
+            api_url: Some("https://example.com".to_string()),
+            is_current: false,
+            is_in_config: true,
+            is_saved: true,
+            is_default_model: false,
+            primary_model_id: None,
+            default_model_id: None,
+        }
     }
 
     fn nav_index(app: &App, item: NavItem) -> usize {
@@ -782,11 +805,192 @@ mod tests {
         assert_eq!(app.filter.active, true);
         app.on_key(key(KeyCode::Char('a')), &data());
         app.on_key(key(KeyCode::Char('b')), &data());
-        assert_eq!(app.filter.buffer, "ab");
+        assert_eq!(app.filter.input.value, "ab");
         app.on_key(key(KeyCode::Backspace), &data());
-        assert_eq!(app.filter.buffer, "a");
+        assert_eq!(app.filter.input.value, "a");
         app.on_key(key(KeyCode::Enter), &data());
         assert_eq!(app.filter.active, false);
+    }
+
+    #[test]
+    fn filter_mode_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.on_key(key(KeyCode::Char('/')), &data());
+        for ch in "alpha beta".chars() {
+            app.on_key(key(KeyCode::Char(ch)), &data());
+        }
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        assert_eq!(app.filter.input.value, ">alpha ");
+        assert_eq!(app.filter.input.cursor, ">alpha ".chars().count());
+    }
+
+    #[test]
+    fn text_input_overlay_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.overlay = Overlay::TextInput(TextInputState {
+            title: "Demo".to_string(),
+            prompt: "Value".to_string(),
+            input: TextInput::new("alpha beta"),
+            submit: TextSubmit::ConfigBackupName,
+            secret: false,
+        });
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        assert!(matches!(
+            app.overlay,
+            Overlay::TextInput(TextInputState { input, .. })
+                if input.value == ">alpha " && input.cursor == ">alpha ".chars().count()
+        ));
+    }
+
+    #[test]
+    fn provider_field_editor_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+        app.on_key(key(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Enter), &data());
+
+        let name_idx = match app.form.as_ref() {
+            Some(FormState::ProviderAdd(form)) => form
+                .fields()
+                .iter()
+                .position(|field| *field == ProviderAddField::Name)
+                .expect("name field should exist"),
+            _ => panic!("provider form should be open"),
+        };
+
+        if let Some(FormState::ProviderAdd(form)) = app.form.as_mut() {
+            form.field_idx = name_idx;
+            form.editing = true;
+            form.name.set("alpha beta");
+        }
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        let form = match app.form.as_ref() {
+            Some(FormState::ProviderAdd(form)) => form,
+            _ => panic!("provider form should stay open"),
+        };
+        assert_eq!(form.name.value, ">alpha ");
+    }
+
+    #[test]
+    fn mcp_field_editor_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        let mut form = McpAddFormState::new();
+        form.focus = FormFocus::Fields;
+        form.field_idx = form
+            .fields()
+            .iter()
+            .position(|field| *field == McpAddField::Name)
+            .expect("name field should exist");
+        form.editing = true;
+        form.name.set("alpha beta");
+        app.form = Some(FormState::McpAdd(form));
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        let form = match app.form.as_ref() {
+            Some(FormState::McpAdd(form)) => form,
+            _ => panic!("mcp form should stay open"),
+        };
+        assert_eq!(form.name.value, ">alpha ");
+    }
+
+    #[test]
+    fn mcp_env_entry_editor_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.form = Some(FormState::McpAdd(McpAddFormState::new()));
+        app.overlay = Overlay::McpEnvEntryEditor(McpEnvEntryEditorState {
+            row: None,
+            return_selected: 0,
+            field: McpEnvEditorField::Key,
+            key: TextInput::new("alpha beta"),
+            value: TextInput::new(""),
+        });
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        assert!(matches!(
+            app.overlay,
+            Overlay::McpEnvEntryEditor(McpEnvEntryEditorState { key, .. })
+                if key.value == ">alpha " && key.cursor == ">alpha ".chars().count()
+        ));
+    }
+
+    #[test]
+    fn model_fetch_picker_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.overlay = Overlay::ModelFetchPicker {
+            request_id: 1,
+            field: ProviderAddField::Name,
+            claude_idx: None,
+            input: TextInput::new("alpha beta"),
+            query: "alpha beta".to_string(),
+            fetching: false,
+            models: vec!["alpha beta".to_string()],
+            error: None,
+            selected_idx: 0,
+        };
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        app.on_key(key(KeyCode::Char('>')), &data());
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+
+        assert!(matches!(
+            app.overlay,
+            Overlay::ModelFetchPicker { input, query, .. }
+                if input.value == ">alpha "
+                    && input.cursor == ">alpha ".chars().count()
+                    && query == ">alpha "
+        ));
+    }
+
+    #[test]
+    fn multiline_editor_supports_readline_shortcuts() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.open_editor(
+            "Prompt",
+            EditorKind::Plain,
+            "first line\nalpha beta",
+            EditorSubmit::PromptCreate {
+                name: "Demo".to_string(),
+            },
+        );
+        if let Some(editor) = app.editor.as_mut() {
+            editor.cursor_row = 1;
+            editor.cursor_col = "alpha beta".chars().count();
+        }
+
+        app.on_key(ctrl(KeyCode::Char('a')), &data());
+        assert_eq!(app.editor.as_ref().unwrap().cursor_col, 0);
+
+        app.on_key(ctrl(KeyCode::Char('e')), &data());
+        app.on_key(ctrl(KeyCode::Char('w')), &data());
+        assert_eq!(app.editor.as_ref().unwrap().lines[1], "alpha ");
+
+        app.on_key(alt(KeyCode::Char('b')), &data());
+        assert_eq!(app.editor.as_ref().unwrap().cursor_col, 0);
     }
 
     #[test]
@@ -871,6 +1075,30 @@ mod tests {
             action,
             Action::SwitchRoute(Route::ProviderDetail { id }) if id == "p1"
         ));
+    }
+
+    #[test]
+    fn providers_enter_key_imports_current_config_when_empty() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+
+        let action = app.on_key(key(KeyCode::Enter), &UiData::default());
+
+        assert!(matches!(action, Action::ProviderImportLiveConfig));
+        assert!(matches!(app.overlay, Overlay::None));
+    }
+
+    #[test]
+    fn providers_i_key_is_noop() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+
+        let action = app.on_key(key(KeyCode::Char('i')), &UiData::default());
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(app.overlay, Overlay::None));
     }
 
     #[test]
@@ -967,34 +1195,17 @@ mod tests {
     }
 
     #[test]
-    fn providers_c_key_requests_stream_check() {
+    fn providers_c_key_is_noop() {
         let mut app = App::new(Some(AppType::Claude));
         app.route = Route::Providers;
         app.focus = Focus::Content;
 
         let mut data = UiData::default();
-        data.providers.rows.push(super::super::data::ProviderRow {
-            id: "p1".to_string(),
-            provider: crate::provider::Provider::with_id(
-                "p1".to_string(),
-                "Provider One".to_string(),
-                json!({"env":{"ANTHROPIC_BASE_URL":"https://example.com","ANTHROPIC_AUTH_TOKEN":"sk-demo"}}),
-                None,
-            ),
-            api_url: Some("https://example.com".to_string()),
-            is_current: false,
-            is_in_config: true,
-            is_saved: true,
-            is_default_model: false,
-            primary_model_id: None,
-            default_model_id: None,
-        });
+        data.providers.rows.push(claude_provider_row("p1"));
 
         let action = app.on_key(key(KeyCode::Char('c')), &data);
-        assert!(matches!(action, Action::ProviderStreamCheck { id } if id == "p1"));
-        assert!(
-            matches!(app.overlay, Overlay::StreamCheckRunning { ref provider_name, .. } if provider_name == "Provider One")
-        );
+        assert!(matches!(action, Action::None));
+        assert!(matches!(app.overlay, Overlay::None));
     }
 
     #[test]
@@ -1024,6 +1235,121 @@ mod tests {
         let action = app.on_key(key(KeyCode::Char('c')), &data);
         assert!(matches!(action, Action::None));
         assert!(matches!(app.overlay, Overlay::None));
+    }
+
+    #[test]
+    fn providers_t_key_opens_test_menu() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Char('t')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            app.overlay,
+            Overlay::ProviderTestMenu {
+                ref provider_id,
+                selected: 0
+            } if provider_id == "p1"
+        ));
+    }
+
+    #[test]
+    fn provider_test_menu_enter_runs_speedtest() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+        app.overlay = Overlay::ProviderTestMenu {
+            provider_id: "p1".to_string(),
+            selected: 0,
+        };
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Enter), &data);
+
+        assert!(
+            matches!(action, Action::ProviderSpeedtest { ref url } if url == "https://example.com")
+        );
+        assert!(
+            matches!(app.overlay, Overlay::SpeedtestRunning { ref url } if url == "https://example.com")
+        );
+    }
+
+    #[test]
+    fn provider_test_menu_second_item_runs_stream_check() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+        app.overlay = Overlay::ProviderTestMenu {
+            provider_id: "p1".to_string(),
+            selected: 1,
+        };
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Enter), &data);
+
+        assert!(matches!(action, Action::ProviderStreamCheck { ref id } if id == "p1"));
+        assert!(
+            matches!(app.overlay, Overlay::StreamCheckRunning { ref provider_name, .. } if provider_name == "Provider One")
+        );
+    }
+
+    #[test]
+    fn provider_test_menu_t_key_is_noop() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+        app.overlay = Overlay::ProviderTestMenu {
+            provider_id: "p1".to_string(),
+            selected: 0,
+        };
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Char('t')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            app.overlay,
+            Overlay::ProviderTestMenu {
+                ref provider_id,
+                selected: 0
+            } if provider_id == "p1"
+        ));
+    }
+
+    #[test]
+    fn provider_test_menu_c_key_is_noop() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Providers;
+        app.focus = Focus::Content;
+        app.overlay = Overlay::ProviderTestMenu {
+            provider_id: "p1".to_string(),
+            selected: 1,
+        };
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Char('c')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            app.overlay,
+            Overlay::ProviderTestMenu {
+                ref provider_id,
+                selected: 1
+            } if provider_id == "p1"
+        ));
     }
 
     #[test]
@@ -1381,7 +1707,7 @@ mod tests {
     }
 
     #[test]
-    fn provider_detail_c_key_requests_stream_check() {
+    fn provider_detail_c_key_is_noop() {
         let mut app = App::new(Some(AppType::Claude));
         app.route = Route::ProviderDetail {
             id: "p1".to_string(),
@@ -1389,28 +1715,34 @@ mod tests {
         app.focus = Focus::Content;
 
         let mut data = UiData::default();
-        data.providers.rows.push(super::super::data::ProviderRow {
-            id: "p1".to_string(),
-            provider: crate::provider::Provider::with_id(
-                "p1".to_string(),
-                "Provider One".to_string(),
-                json!({"env":{"ANTHROPIC_BASE_URL":"https://example.com","ANTHROPIC_AUTH_TOKEN":"sk-demo"}}),
-                None,
-            ),
-            api_url: Some("https://example.com".to_string()),
-            is_current: false,
-            is_in_config: true,
-            is_saved: true,
-            is_default_model: false,
-            primary_model_id: None,
-            default_model_id: None,
-        });
+        data.providers.rows.push(claude_provider_row("p1"));
 
         let action = app.on_key(key(KeyCode::Char('c')), &data);
-        assert!(matches!(action, Action::ProviderStreamCheck { id } if id == "p1"));
-        assert!(
-            matches!(app.overlay, Overlay::StreamCheckRunning { ref provider_name, .. } if provider_name == "Provider One")
-        );
+        assert!(matches!(action, Action::None));
+        assert!(matches!(app.overlay, Overlay::None));
+    }
+
+    #[test]
+    fn provider_detail_t_key_opens_test_menu() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::ProviderDetail {
+            id: "p1".to_string(),
+        };
+        app.focus = Focus::Content;
+
+        let mut data = UiData::default();
+        data.providers.rows.push(claude_provider_row("p1"));
+
+        let action = app.on_key(key(KeyCode::Char('t')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            app.overlay,
+            Overlay::ProviderTestMenu {
+                ref provider_id,
+                selected: 0
+            } if provider_id == "p1"
+        ));
     }
 
     #[test]
@@ -2931,7 +3263,7 @@ mod tests {
         app.route_stack = vec![Route::Config];
         app.focus = Focus::Content;
         app.workspace_idx = workspace_row_index(OpenClawWorkspaceRow::DailyMemory);
-        app.filter.buffer = "workspace".to_string();
+        app.filter.input.set("workspace".to_string());
         app.openclaw_daily_memory_search_results = vec![DailyMemorySearchResult {
             filename: "2026-03-20.md".to_string(),
             date: "2026-03-20".to_string(),
@@ -2949,7 +3281,7 @@ mod tests {
         ));
         assert_eq!(app.route, Route::ConfigOpenClawDailyMemory);
         assert!(!app.filter.active);
-        assert!(app.filter.buffer.is_empty());
+        assert!(app.filter.input.value.is_empty());
         assert!(app.openclaw_daily_memory_search_results.is_empty());
     }
 
@@ -2976,7 +3308,7 @@ mod tests {
         app.route = Route::ConfigOpenClawDailyMemory;
         app.route_stack = vec![Route::Main, Route::ConfigOpenClawWorkspace];
         app.focus = Focus::Content;
-        app.filter.buffer = "focus".to_string();
+        app.filter.input.set("focus".to_string());
         app.openclaw_daily_memory_search_results = vec![DailyMemorySearchResult {
             filename: "2026-03-20.md".to_string(),
             date: "2026-03-20".to_string(),
@@ -2994,7 +3326,7 @@ mod tests {
         ));
         assert_eq!(app.route, Route::ConfigOpenClawWorkspace);
         assert!(!app.filter.active);
-        assert!(app.filter.buffer.is_empty());
+        assert!(app.filter.input.value.is_empty());
         assert!(app.openclaw_daily_memory_search_results.is_empty());
     }
 
@@ -3012,9 +3344,9 @@ mod tests {
         assert!(matches!(action, Action::None));
         assert!(matches!(
             &app.overlay,
-            Overlay::TextInput(TextInputState { submit, buffer, .. })
+            Overlay::TextInput(TextInputState { submit, input, .. })
                 if *submit == TextSubmit::OpenClawDailyMemoryFilename
-                    && (buffer == &before || buffer == &after)
+                    && (input.value == before || input.value == after)
         ));
     }
 
@@ -3026,7 +3358,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_openclaw_daily_memory_create_title().to_string(),
             prompt: texts::tui_openclaw_daily_memory_create_prompt().to_string(),
-            buffer: "bad-name.md".to_string(),
+            input: TextInput::new("bad-name.md".to_string()),
             submit: TextSubmit::OpenClawDailyMemoryFilename,
             secret: false,
         });
@@ -3040,7 +3372,7 @@ mod tests {
         );
         assert!(matches!(
             &app.overlay,
-            Overlay::TextInput(TextInputState { buffer, .. }) if buffer == "bad-name.md"
+            Overlay::TextInput(TextInputState { input, .. }) if input.value == "bad-name.md"
         ));
         assert!(matches!(
             app.toast.as_ref(),
@@ -3139,7 +3471,7 @@ mod tests {
         let action = app.on_key(key(KeyCode::Char('m')), &UiData::default());
 
         assert!(matches!(action, Action::None));
-        assert_eq!(app.filter.buffer, "m");
+        assert_eq!(app.filter.input.value, "m");
     }
 
     #[test]
@@ -3147,7 +3479,7 @@ mod tests {
         let mut app = App::new(Some(AppType::OpenClaw));
         app.route = Route::ConfigOpenClawDailyMemory;
         app.filter.active = true;
-        app.filter.buffer = "focus".to_string();
+        app.filter.input.set("focus".to_string());
 
         let action = app.on_key(key(KeyCode::Enter), &UiData::default());
 
@@ -3331,7 +3663,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_openclaw_daily_memory_create_title().to_string(),
             prompt: texts::tui_openclaw_daily_memory_create_prompt().to_string(),
-            buffer: "2026-03-20.md".to_string(),
+            input: TextInput::new("2026-03-20.md".to_string()),
             submit: TextSubmit::OpenClawDailyMemoryFilename,
             secret: false,
         });
@@ -3368,7 +3700,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_openclaw_daily_memory_create_title().to_string(),
             prompt: texts::tui_openclaw_daily_memory_create_prompt().to_string(),
-            buffer: "2026-03-20.md".to_string(),
+            input: TextInput::new("2026-03-20.md".to_string()),
             submit: TextSubmit::OpenClawDailyMemoryFilename,
             secret: false,
         });
@@ -3456,7 +3788,7 @@ mod tests {
 
         let mut app = App::new(Some(AppType::OpenClaw));
         app.route = Route::ConfigOpenClawDailyMemory;
-        app.filter.buffer = "focus".to_string();
+        app.filter.input.set("focus".to_string());
         app.openclaw_daily_memory_search_query = "focus".to_string();
         app.openclaw_daily_memory_search_results = vec![DailyMemorySearchResult {
             filename: "2026-03-19.md".to_string(),
@@ -3515,7 +3847,7 @@ mod tests {
 
         let mut app = App::new(Some(AppType::OpenClaw));
         app.route = Route::ConfigOpenClawDailyMemory;
-        app.filter.buffer = "focus".to_string();
+        app.filter.input.set("focus".to_string());
         app.openclaw_daily_memory_search_query = "focus".to_string();
         app.daily_memory_idx = 1;
         let mut data = UiData::load(&AppType::OpenClaw).expect("load openclaw ui data");
@@ -4109,7 +4441,7 @@ mod tests {
         ));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
 
         for ch in ['/', '?', '[', ']', 'q'] {
@@ -4121,7 +4453,7 @@ mod tests {
 
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "/?[]q"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "/?[]q"
         ));
         assert_eq!(app.route, Route::ConfigOpenClawTools);
         assert_eq!(app.app_type, AppType::OpenClaw);
@@ -4187,7 +4519,7 @@ mod tests {
 
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "hjkl"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "hjkl"
         ));
     }
 
@@ -4215,7 +4547,7 @@ mod tests {
         ));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "Read"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "Read"
         ));
 
         assert!(matches!(app.on_key(key(KeyCode::Esc), &data), Action::None));
@@ -4231,7 +4563,7 @@ mod tests {
         ));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
     }
 
@@ -4259,7 +4591,7 @@ mod tests {
         assert!(matches!(action, Action::None));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "Read"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "Read"
         ));
     }
 
@@ -4291,7 +4623,7 @@ mod tests {
         assert!(matches!(action, Action::None));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
     }
 
@@ -4311,7 +4643,9 @@ mod tests {
             Overlay::OpenClawToolsProfilePicker { selected } => {
                 format!("profile-picker:{selected:?}")
             }
-            Overlay::TextInput(TextInputState { buffer, .. }) => format!("text-input:{buffer}"),
+            Overlay::TextInput(TextInputState { input, .. }) => {
+                format!("text-input:{}", input.value)
+            }
             other => panic!("expected tools picker or popup editor, got {other:?}"),
         };
 
@@ -4428,7 +4762,7 @@ mod tests {
         ));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
         assert!(matches!(
             app.on_key(key(KeyCode::Char('G')), &data),
@@ -4466,7 +4800,7 @@ mod tests {
         ));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
 
         let action = app.on_key(key(KeyCode::Enter), &data);
@@ -4503,7 +4837,7 @@ mod tests {
         assert!(matches!(action, Action::None));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer.is_empty()
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value.is_empty()
         ));
     }
 
@@ -5731,14 +6065,14 @@ mod tests {
             Overlay::TextInput(TextInputState {
                 ref title,
                 ref prompt,
-                ref buffer,
+                ref input,
                 submit: TextSubmit::OpenClawAgentsRuntimeField {
                     field: OpenClawAgentsRuntimeField::Timeout,
                 },
                 ..
             }) if title == texts::tui_openclaw_agents_timeout()
                 && prompt == texts::tui_openclaw_agents_timeout()
-                && buffer.is_empty()
+                && input.value.is_empty()
         ));
     }
 
@@ -5765,7 +6099,7 @@ mod tests {
 
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "hjkl"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "hjkl"
         ));
 
         let form = app
@@ -5800,7 +6134,7 @@ mod tests {
 
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "/?[]q"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "/?[]q"
         ));
 
         let form = app
@@ -5838,7 +6172,7 @@ mod tests {
         assert!(matches!(action, Action::None));
         assert!(matches!(
             app.overlay,
-            Overlay::TextInput(TextInputState { ref buffer, .. }) if buffer == "x"
+            Overlay::TextInput(TextInputState { ref input, .. }) if input.value == "x"
         ));
 
         let form = app
@@ -5981,7 +6315,7 @@ mod tests {
             Action::None
         ));
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "   ".to_string();
+            input.input.set("   ".to_string());
         } else {
             panic!("expected runtime text input overlay");
         }
@@ -6025,7 +6359,7 @@ mod tests {
             Action::None
         ));
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer.clear();
+            input.input.set("");
         } else {
             panic!("expected timeout text input overlay");
         }
@@ -7260,9 +7594,9 @@ mod tests {
             app.overlay,
             Overlay::TextInput(TextInputState {
                 submit: TextSubmit::SettingsOpenClawConfigDir,
-                buffer,
+                input,
                 ..
-            }) if buffer == r"\\wsl$\Ubuntu\home\demo\.openclaw"
+            }) if input.value == r"\\wsl$\Ubuntu\home\demo\.openclaw"
         ));
     }
 
@@ -7275,7 +7609,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "OpenClaw Config Directory".to_string(),
             prompt: "path".to_string(),
-            buffer: r"\\wsl$\Ubuntu\home\demo\.openclaw".to_string(),
+            input: TextInput::new(r"\\wsl$\Ubuntu\home\demo\.openclaw".to_string()),
             submit: TextSubmit::SettingsOpenClawConfigDir,
             secret: false,
         });
@@ -7290,7 +7624,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "OpenClaw Config Directory".to_string(),
             prompt: "path".to_string(),
-            buffer: "   ".to_string(),
+            input: TextInput::new("   ".to_string()),
             submit: TextSubmit::SettingsOpenClawConfigDir,
             secret: false,
         });
@@ -7475,7 +7809,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "Listen Address".to_string(),
             prompt: "address".to_string(),
-            buffer: "127.0.0.1".to_string(),
+            input: TextInput::new("127.0.0.1".to_string()),
             submit: TextSubmit::SettingsProxyListenAddress,
             secret: false,
         });
@@ -7489,7 +7823,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "Listen Port".to_string(),
             prompt: "port".to_string(),
-            buffer: "15721".to_string(),
+            input: TextInput::new("15721".to_string()),
             submit: TextSubmit::SettingsProxyListenPort,
             secret: false,
         });
@@ -7509,7 +7843,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "Listen Address".to_string(),
             prompt: "address".to_string(),
-            buffer: "bad host".to_string(),
+            input: TextInput::new("bad host".to_string()),
             submit: TextSubmit::SettingsProxyListenAddress,
             secret: false,
         });
@@ -7527,7 +7861,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "Listen Port".to_string(),
             prompt: "port".to_string(),
-            buffer: "80".to_string(),
+            input: TextInput::new("80".to_string()),
             submit: TextSubmit::SettingsProxyListenPort,
             secret: false,
         });
@@ -7550,7 +7884,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: "Listen Address".to_string(),
             prompt: "address".to_string(),
-            buffer: "127.0.0.1".to_string(),
+            input: TextInput::new("127.0.0.1".to_string()),
             submit: TextSubmit::SettingsProxyListenAddress,
             secret: false,
         });
@@ -7674,7 +8008,7 @@ mod tests {
         ));
 
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "demo@nutstore.com".to_string();
+            input.input.set("demo@nutstore.com".to_string());
         }
         let action = app.on_key(key(KeyCode::Enter), &data);
         assert!(matches!(action, Action::None));
@@ -7688,7 +8022,7 @@ mod tests {
         ));
 
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "app-password".to_string();
+            input.input.set("app-password".to_string());
         }
         let action = app.on_key(key(KeyCode::Enter), &data);
         assert!(matches!(
@@ -7723,7 +8057,7 @@ mod tests {
         ));
 
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "   ".to_string();
+            input.input.set("   ".to_string());
         }
         let action = app.on_key(key(KeyCode::Enter), &data);
         assert!(matches!(action, Action::None));
@@ -7736,11 +8070,11 @@ mod tests {
         ));
 
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "demo@nutstore.com".to_string();
+            input.input.set("demo@nutstore.com".to_string());
         }
         let _ = app.on_key(key(KeyCode::Enter), &data);
         if let Overlay::TextInput(ref mut input) = app.overlay {
-            input.buffer = "   ".to_string();
+            input.input.set("   ".to_string());
         }
         let action = app.on_key(key(KeyCode::Enter), &data);
         assert!(matches!(action, Action::None));
@@ -7827,7 +8161,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_prompt_create_title().to_string(),
             prompt: texts::tui_prompt_create_prompt().to_string(),
-            buffer: "Prompt One".to_string(),
+            input: TextInput::new("Prompt One".to_string()),
             submit: TextSubmit::PromptCreateName,
             secret: false,
         });
@@ -7849,7 +8183,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_prompt_create_title().to_string(),
             prompt: texts::tui_prompt_create_prompt().to_string(),
-            buffer: "   ".to_string(),
+            input: TextInput::new("   ".to_string()),
             submit: TextSubmit::PromptCreateName,
             secret: false,
         });
@@ -7891,9 +8225,9 @@ mod tests {
             app.overlay,
             Overlay::TextInput(TextInputState {
                 submit: TextSubmit::PromptRename { ref id },
-                ref buffer,
+                ref input,
                 ..
-            }) if id == "pr1" && buffer == "Demo"
+            }) if id == "pr1" && input.value == "Demo"
         ));
     }
 
@@ -7906,7 +8240,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_prompt_rename_title().to_string(),
             prompt: texts::tui_prompt_rename_prompt().to_string(),
-            buffer: "   ".to_string(),
+            input: TextInput::new("   ".to_string()),
             submit: TextSubmit::PromptRename {
                 id: "pr1".to_string(),
             },
@@ -7933,7 +8267,7 @@ mod tests {
         app.overlay = Overlay::TextInput(TextInputState {
             title: texts::tui_prompt_rename_title().to_string(),
             prompt: texts::tui_prompt_rename_prompt().to_string(),
-            buffer: "Renamed".to_string(),
+            input: TextInput::new("Renamed".to_string()),
             submit: TextSubmit::PromptRename {
                 id: "pr1".to_string(),
             },
@@ -7957,7 +8291,7 @@ mod tests {
         let mut app = App::new(Some(AppType::Claude));
         app.route = Route::Prompts;
         app.focus = Focus::Content;
-        app.filter.buffer = "focus".to_string();
+        app.filter.input.set("focus".to_string());
         app.prompt_idx = 0;
 
         let mut data = UiData::load(&app.app_type).expect("load ui data");
@@ -7974,7 +8308,7 @@ mod tests {
         .expect("create prompt");
 
         assert!(!app.filter.active);
-        assert!(app.filter.buffer.is_empty());
+        assert!(app.filter.input.value.is_empty());
         assert_eq!(app.prompt_idx, 0);
         assert_eq!(data.prompts.rows.len(), 1);
         assert_eq!(data.prompts.rows[0].id, "prompt-one");
@@ -8006,7 +8340,7 @@ mod tests {
         let mut app = App::new(Some(AppType::Claude));
         app.route = Route::Prompts;
         app.focus = Focus::Content;
-        app.filter.buffer = "demo".to_string();
+        app.filter.input.set("demo".to_string());
         app.prompt_idx = 0;
 
         let mut data = UiData::load(&app.app_type).expect("load ui data");
@@ -8021,7 +8355,7 @@ mod tests {
         .expect("rename prompt");
 
         assert!(!app.filter.active);
-        assert!(app.filter.buffer.is_empty());
+        assert!(app.filter.input.value.is_empty());
         assert_eq!(app.prompt_idx, 0);
         assert_eq!(data.prompts.rows.len(), 1);
         assert_eq!(data.prompts.rows[0].id, "pr1");
