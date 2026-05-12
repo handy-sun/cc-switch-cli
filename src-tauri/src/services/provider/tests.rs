@@ -1024,6 +1024,63 @@ model:
 
 #[test]
 #[serial]
+fn hermes_switch_updates_live_model_provider_and_default() {
+    let temp_home = TempDir::new().expect("create temp home");
+    let _env = EnvGuard::set_home(temp_home.path());
+
+    let config_path = crate::hermes_config::get_hermes_config_path();
+    std::fs::create_dir_all(config_path.parent().expect("hermes config parent"))
+        .expect("create hermes config dir");
+    std::fs::write(
+        &config_path,
+        r#"
+model:
+  provider: old-provider
+  default: old-model
+custom_providers: []
+"#,
+    )
+    .expect("write hermes config");
+
+    let mut config = MultiAppConfig::default();
+    config.ensure_app(&AppType::Hermes);
+    let manager = config
+        .get_manager_mut(&AppType::Hermes)
+        .expect("hermes manager");
+    manager.providers.insert(
+        "p2".to_string(),
+        Provider::with_id(
+            "p2".to_string(),
+            "Hermes Provider".to_string(),
+            json!({
+                "base_url": "https://hermes.example.com/v1",
+                "api_key": "sk-hermes",
+                "models": [
+                    { "id": "new-model" }
+                ]
+            }),
+            None,
+        ),
+    );
+    let state = state_from_config(config);
+
+    ProviderService::switch(&state, AppType::Hermes, "p2").expect("switch Hermes provider");
+
+    let model = crate::hermes_config::get_model_config()
+        .expect("read Hermes model config")
+        .expect("Hermes model config should exist");
+    assert_eq!(model.provider.as_deref(), Some("p2"));
+    assert_eq!(model.default.as_deref(), Some("new-model"));
+    assert!(
+        crate::hermes_config::get_provider("p2")
+            .expect("read switched Hermes provider")
+            .is_some(),
+        "switch should still add/update the provider in live config"
+    );
+}
+
+#[test]
+#[serial]
 fn current_prefers_effective_current_from_local_settings_without_mutating_config() {
     let temp_home = TempDir::new().expect("create temp home");
     let _env = EnvGuard::set_home(temp_home.path());

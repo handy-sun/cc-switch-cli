@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 const OPENCLAW_DEFAULT_SOURCE: &str =
-    "{\n  models: {\n    mode: 'merge',\n    providers: {},\n  },\n}\n";
+    "{\n  \"models\": {\n    \"mode\": \"merge\",\n    \"providers\": {}\n  }\n}\n";
 pub fn get_openclaw_dir() -> PathBuf {
     if let Some(override_dir) = get_openclaw_override_dir() {
         return override_dir;
@@ -482,89 +482,8 @@ fn derive_entry_separator(leading_ws: &str) -> String {
     String::new()
 }
 
-fn serialize_json5_string(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for ch in value.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '\'' => escaped.push_str("\\'"),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            '\u{08}' => escaped.push_str("\\b"),
-            '\u{0C}' => escaped.push_str("\\f"),
-            ch if ch.is_control() => {
-                let code = ch as u32;
-                escaped.push_str(&format!("\\u{:04X}", code));
-            }
-            ch => escaped.push(ch),
-        }
-    }
-
-    format!("'{escaped}'")
-}
-
-fn serialize_json5_key(key: &str) -> String {
-    if is_identifier_key(key) {
-        key.to_string()
-    } else {
-        serialize_json5_string(key)
-    }
-}
-
-fn serialize_json5_value(value: &Value, indent_level: usize) -> String {
-    match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(flag) => flag.to_string(),
-        Value::Number(number) => number.to_string(),
-        Value::String(text) => serialize_json5_string(text),
-        Value::Array(items) => {
-            if items.is_empty() {
-                return "[]".to_string();
-            }
-
-            let current_indent = "  ".repeat(indent_level);
-            let child_indent = "  ".repeat(indent_level + 1);
-            let mut output = String::from("[\n");
-            for (index, item) in items.iter().enumerate() {
-                output.push_str(&child_indent);
-                output.push_str(&serialize_json5_value(item, indent_level + 1));
-                if index + 1 != items.len() {
-                    output.push(',');
-                }
-                output.push('\n');
-            }
-            output.push_str(&current_indent);
-            output.push(']');
-            output
-        }
-        Value::Object(map) => {
-            if map.is_empty() {
-                return "{}".to_string();
-            }
-
-            let current_indent = "  ".repeat(indent_level);
-            let child_indent = "  ".repeat(indent_level + 1);
-            let mut output = String::from("{\n");
-            for (index, (key, item)) in map.iter().enumerate() {
-                output.push_str(&child_indent);
-                output.push_str(&serialize_json5_key(key));
-                output.push_str(": ");
-                output.push_str(&serialize_json5_value(item, indent_level + 1));
-                if index + 1 != map.len() {
-                    output.push(',');
-                }
-                output.push('\n');
-            }
-            output.push_str(&current_indent);
-            output.push('}');
-            output
-        }
-    }
-}
-
 fn serialize_section_value(_section: &str, value: &Value) -> Result<String, AppError> {
-    Ok(serialize_json5_value(value, 0))
+    serde_json::to_string_pretty(value).map_err(|source| AppError::JsonSerialize { source })
 }
 
 fn value_to_rt_value(
@@ -619,21 +538,7 @@ fn make_root_pair(key: &str, value: RtJSONValue, closing_ws: String) -> RtJSONKe
 }
 
 fn make_json5_key(key: &str) -> RtJSONValue {
-    if is_identifier_key(key) {
-        RtJSONValue::Identifier(key.to_string())
-    } else {
-        RtJSONValue::DoubleQuotedString(key.to_string())
-    }
-}
-
-fn is_identifier_key(key: &str) -> bool {
-    let mut chars = key.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-
-    matches!(first, 'a'..='z' | 'A'..='Z' | '_' | '$')
-        && chars.all(|ch| matches!(ch, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '$'))
+    RtJSONValue::DoubleQuotedString(key.to_string())
 }
 
 fn json5_key_name(key: &RtJSONValue) -> Option<&str> {
@@ -1255,15 +1160,15 @@ mod tests {
             "top-level comment should survive targeted remove: {written}"
         );
         assert!(
-            written.contains("mode: 'merge'"),
-            "models.mode formatting should stay JSON5-style: {written}"
+            written.contains("\"mode\": \"merge\""),
+            "rewritten models section should use strict JSON key/string quoting: {written}"
         );
         assert!(
             !written.contains("// preserve providers comment"),
             "rewriting the models subtree should drop providers-level comments like upstream: {written}"
         );
         assert!(
-            written.contains("providers: {}"),
+            written.contains("\"providers\": {}"),
             "providers map should become an empty object after rewrite: {written}"
         );
         assert!(
@@ -1285,7 +1190,7 @@ mod tests {
 
         assert_eq!(
             serialize_section_value("models", &models_value).expect("serialize models"),
-            "{\n  mode: 'merge',\n  providers: {}\n}"
+            "{\n  \"mode\": \"merge\",\n  \"providers\": {}\n}"
         );
         assert_eq!(
             serialize_section_value("tools", &empty_tools_value).expect("serialize tools"),
@@ -1293,12 +1198,12 @@ mod tests {
         );
         assert_eq!(
             serialize_section_value("env", &env_value).expect("serialize env"),
-            "{\n  vars: {}\n}"
+            "{\n  \"vars\": {}\n}"
         );
     }
 
     #[test]
-    fn serialize_section_value_uses_json5_style_for_regular_sections() {
+    fn serialize_section_value_uses_strict_json_style_for_regular_sections() {
         let env_value = json!({
             "vars": {
                 "TOKEN": "value"
@@ -1314,13 +1219,17 @@ mod tests {
         let actual_tools = serialize_section_value("tools", &tools_value)
             .expect("serialize non-empty tools shape should succeed");
 
-        assert_eq!(actual_env, "{\n  vars: {\n    TOKEN: 'value'\n  }\n}");
+        assert_eq!(
+            actual_env,
+            "{\n  \"vars\": {\n    \"TOKEN\": \"value\"\n  }\n}"
+        );
         assert_eq!(
             actual_tools,
-            "{\n  allow: [\n    'Read'\n  ],\n  profile: 'coding'\n}"
+            "{\n  \"allow\": [\n    \"Read\"\n  ],\n  \"profile\": \"coding\"\n}"
         );
-        json5::from_str::<Value>(&actual_env).expect("env output should remain valid JSON5");
-        json5::from_str::<Value>(&actual_tools).expect("tools output should remain valid JSON5");
+        serde_json::from_str::<Value>(&actual_env).expect("env output should remain valid JSON");
+        serde_json::from_str::<Value>(&actual_tools)
+            .expect("tools output should remain valid JSON");
     }
 
     #[test]
@@ -1588,7 +1497,8 @@ mod tests {
             let written =
                 fs::read_to_string(get_openclaw_config_path()).expect("read written config");
             assert!(written.contains("// top-level comment"));
-            assert!(written.contains("agents: {"));
+            assert!(written.contains("\"agents\": {"));
+            assert!(!written.contains("agents: {"));
             assert!(written.contains("provider/model"));
         });
     }

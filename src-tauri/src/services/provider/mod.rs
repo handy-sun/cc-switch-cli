@@ -68,6 +68,7 @@ struct PostCommitAction {
     backup: LiveSnapshot,
     sync_mcp: bool,
     refresh_snapshot: bool,
+    apply_hermes_switch_defaults: bool,
     common_config_snippet: Option<String>,
     takeover_active: bool,
 }
@@ -385,6 +386,13 @@ impl ProviderService {
                 action.common_config_snippet.as_deref(),
                 apply_common_config,
             )?;
+            if action.apply_hermes_switch_defaults {
+                crate::hermes_config::apply_switch_defaults(
+                    &action.provider.id,
+                    &action.provider.settings_config,
+                )
+                .map(|_| ())?;
+            }
         }
         if action.sync_mcp {
             // 使用 v3.7.0 统一的 MCP 同步机制，支持所有应用
@@ -785,6 +793,7 @@ impl ProviderService {
             backup: Self::capture_live_snapshot(app_type)?,
             sync_mcp: matches!(app_type, AppType::Codex) && !takeover_active,
             refresh_snapshot: false,
+            apply_hermes_switch_defaults: false,
             common_config_snippet: config.common_config_snippets.get(app_type).cloned(),
             takeover_active,
         }))
@@ -1175,6 +1184,7 @@ impl ProviderService {
                     // so managed MCP must be synced back after the write.
                     sync_mcp: matches!(&app_type_clone, AppType::Codex),
                     refresh_snapshot: false,
+                    apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
                 })
@@ -1288,6 +1298,7 @@ impl ProviderService {
                     // so managed MCP must be synced back after the write.
                     sync_mcp: matches!(&app_type_clone, AppType::Codex),
                     refresh_snapshot: false,
+                    apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
                 })
@@ -1760,6 +1771,7 @@ impl ProviderService {
                     backup: Self::capture_live_snapshot(&app_type_clone)?,
                     sync_mcp: matches!(app_type_clone, AppType::OpenCode),
                     refresh_snapshot: false,
+                    apply_hermes_switch_defaults: matches!(app_type_clone, AppType::Hermes),
                     common_config_snippet: config
                         .common_config_snippets
                         .get(&app_type_clone)
@@ -1798,6 +1810,7 @@ impl ProviderService {
                 backup,
                 sync_mcp: true, // v3.7.0: 所有应用切换时都同步 MCP，防止配置丢失
                 refresh_snapshot: true,
+                apply_hermes_switch_defaults: false,
                 common_config_snippet: config.common_config_snippets.get(&app_type_clone).cloned(),
                 takeover_active: false,
             };
