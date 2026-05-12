@@ -4,14 +4,6 @@ fn claude_api_format_label(api_format: crate::cli::tui::form::ClaudeApiFormat) -
     texts::tui_claude_api_format_value(api_format.as_str()).to_string()
 }
 
-fn should_redact_provider_field(
-    provider: &super::form::ProviderAddFormState,
-    field: ProviderAddField,
-) -> bool {
-    matches!(provider.app_type, AppType::OpenClaw)
-        && matches!(field, ProviderAddField::OpenCodeApiKey)
-}
-
 pub(crate) fn render_provider_add_form(
     frame: &mut Frame<'_>,
     app: &App,
@@ -174,25 +166,17 @@ pub(crate) fn render_provider_add_form(
         .copied();
     if let Some(field) = selected {
         if let Some(input) = provider.input(field) {
-            if !editor_active && should_redact_provider_field(provider, field) {
-                frame.render_widget(
-                    Paragraph::new(Line::raw(mask_api_key(&input.value)))
-                        .wrap(Wrap { trim: false }),
-                    editor_inner,
-                );
-            } else {
-                let (visible, cursor_x) =
-                    visible_text_window(&input.value, input.cursor, editor_inner.width as usize);
-                frame.render_widget(
-                    Paragraph::new(Line::raw(visible)).wrap(Wrap { trim: false }),
-                    editor_inner,
-                );
+            let (visible, cursor_x) =
+                visible_text_window(&input.value, input.cursor, editor_inner.width as usize);
+            frame.render_widget(
+                Paragraph::new(Line::raw(visible)).wrap(Wrap { trim: false }),
+                editor_inner,
+            );
 
-                if editor_active {
-                    let x = editor_inner.x + cursor_x.min(editor_inner.width.saturating_sub(1));
-                    let y = editor_inner.y;
-                    frame.set_cursor_position((x, y));
-                }
+            if editor_active {
+                let x = editor_inner.x + cursor_x.min(editor_inner.width.saturating_sub(1));
+                let y = editor_inner.y;
+                frame.set_cursor_position((x, y));
             }
         } else {
             let (line, _cursor_col) =
@@ -392,13 +376,7 @@ pub(crate) fn provider_field_label_and_value(
         ProviderAddField::CommonSnippet => texts::tui_key_open().to_string(),
         _ => provider
             .input(field)
-            .map(|v| {
-                if should_redact_provider_field(provider, field) && !v.value.trim().is_empty() {
-                    mask_api_key(&v.value)
-                } else {
-                    v.value.trim().to_string()
-                }
-            })
+            .map(|v| v.value.trim().to_string())
             .unwrap_or_default(),
     };
 

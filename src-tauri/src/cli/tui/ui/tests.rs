@@ -69,7 +69,7 @@ fn provider_form_shows_full_api_key_in_table_value() {
 }
 
 #[test]
-fn openclaw_tui_form_masks_api_key_in_default_view() {
+fn openclaw_tui_form_shows_full_api_key_in_editable_view() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -93,8 +93,8 @@ fn openclaw_tui_form_masks_api_key_in_default_view() {
 
     let all = all_text(&render(&app, &minimal_data(&app.app_type)));
 
-    assert!(all.contains("sk-openc****cret"), "{all}");
-    assert!(!all.contains("sk-openclaw-secret"), "{all}");
+    assert!(all.contains("sk-openclaw-secret"), "{all}");
+    assert!(!all.contains("sk-openc****cret"), "{all}");
 }
 
 #[test]
