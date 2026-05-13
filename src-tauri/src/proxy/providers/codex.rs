@@ -54,10 +54,6 @@ impl Default for CodexAdapter {
 }
 
 impl ProviderAdapter for CodexAdapter {
-    fn name(&self) -> &'static str {
-        "Codex"
-    }
-
     fn extract_base_url(&self, provider: &Provider) -> Result<String, ProxyError> {
         if let Some(url) = provider
             .settings_config

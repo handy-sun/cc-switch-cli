@@ -7,7 +7,6 @@ use crate::proxy::error::ProxyError;
 use super::auth::AuthInfo;
 
 pub trait ProviderAdapter: Send + Sync {
-    fn name(&self) -> &'static str;
     fn extract_base_url(&self, provider: &Provider) -> Result<String, ProxyError>;
     fn extract_auth(&self, provider: &Provider) -> Option<AuthInfo>;
     fn build_url(&self, base_url: &str, endpoint: &str) -> String;

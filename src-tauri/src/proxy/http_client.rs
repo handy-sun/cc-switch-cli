@@ -56,12 +56,6 @@ pub fn init(proxy_url: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
-pub fn validate_proxy(proxy_url: Option<&str>) -> Result<(), String> {
-    let effective_url = proxy_url.filter(|value| !value.trim().is_empty());
-    build_client(effective_url)?;
-    Ok(())
-}
-
 pub fn apply_proxy(proxy_url: Option<&str>) -> Result<(), String> {
     let effective_url = proxy_url.filter(|value| !value.trim().is_empty());
     let new_client = build_client(effective_url)?;

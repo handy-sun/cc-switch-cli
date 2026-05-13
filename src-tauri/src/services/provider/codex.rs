@@ -171,26 +171,7 @@ impl ProviderService {
         Ok(doc.to_string())
     }
 
-    pub(super) fn merge_toml_tables(dst: &mut toml_edit::Table, src: &toml_edit::Table) {
-        for (key, src_item) in src.iter() {
-            match (dst.get_mut(key), src_item.as_table()) {
-                (Some(dst_item), Some(src_table)) => {
-                    if let Some(dst_table) = dst_item.as_table_mut() {
-                        Self::merge_toml_tables(dst_table, src_table);
-                    } else {
-                        *dst_item = toml_edit::Item::Table(src_table.clone());
-                    }
-                }
-                (Some(dst_item), None) => {
-                    *dst_item = src_item.clone();
-                }
-                (None, _) => {
-                    dst.insert(key, src_item.clone());
-                }
-            }
-        }
-    }
-
+    #[cfg(test)]
     pub(super) fn strip_toml_tables(dst: &mut toml_edit::Table, src: &toml_edit::Table) {
         let mut keys_to_remove = Vec::new();
 
@@ -219,6 +200,7 @@ impl ProviderService {
         }
     }
 
+    #[cfg(test)]
     fn toml_items_equal(left: &toml_edit::Item, right: &toml_edit::Item) -> bool {
         match (left.as_value(), right.as_value()) {
             (Some(left_value), Some(right_value)) => {

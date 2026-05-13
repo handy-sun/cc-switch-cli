@@ -1,24 +1,6 @@
 use super::*;
 
 impl ProviderService {
-    pub(super) fn parse_common_gemini_config_snippet(snippet: &str) -> Result<Value, AppError> {
-        let value: Value = serde_json::from_str(snippet).map_err(|e| {
-            AppError::localized(
-                "common_config.gemini.invalid_json",
-                format!("Gemini 通用配置片段不是有效的 JSON：{e}"),
-                format!("Gemini common config snippet is not valid JSON: {e}"),
-            )
-        })?;
-        if !value.is_object() {
-            return Err(AppError::localized(
-                "common_config.gemini.not_object",
-                "Gemini 通用配置片段必须是 JSON 对象",
-                "Gemini common config snippet must be a JSON object",
-            ));
-        }
-        Ok(value)
-    }
-
     pub(super) fn prepare_switch_gemini(
         config: &mut MultiAppConfig,
         provider_id: &str,

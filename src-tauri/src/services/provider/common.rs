@@ -109,6 +109,7 @@ pub fn migrate_legacy_codex_config(cfg_text: &str, provider: &Provider) -> Optio
 /// When storing a provider snapshot, we remove keys that belong to the common
 /// config snippet so they don't get duplicated when the common snippet is
 /// merged back in during `write_codex_live`.
+#[cfg(test)]
 pub(super) fn strip_codex_common_config_from_full_text(
     config_text: &str,
     common_snippet: &str,
@@ -141,50 +142,4 @@ pub(super) fn strip_codex_common_config_from_full_text(
     }
 
     Ok(doc.to_string())
-}
-
-pub(super) fn merge_json_values(base: &mut Value, overlay: &Value) {
-    match (base, overlay) {
-        (Value::Object(base_map), Value::Object(overlay_map)) => {
-            for (key, overlay_value) in overlay_map {
-                match base_map.get_mut(key) {
-                    Some(base_value) => merge_json_values(base_value, overlay_value),
-                    None => {
-                        base_map.insert(key.clone(), overlay_value.clone());
-                    }
-                }
-            }
-        }
-        (base_value, overlay_value) => {
-            *base_value = overlay_value.clone();
-        }
-    }
-}
-
-pub(super) fn strip_common_values(target: &mut Value, common: &Value) {
-    match (target, common) {
-        (Value::Object(target_map), Value::Object(common_map)) => {
-            for (key, common_value) in common_map {
-                let should_remove = match target_map.get_mut(key) {
-                    Some(target_value) => match target_value {
-                        Value::Object(_) if matches!(common_value, Value::Object(_)) => {
-                            strip_common_values(target_value, common_value);
-                            target_value.as_object().is_some_and(|m| m.is_empty())
-                        }
-                        _ => target_value == common_value,
-                    },
-                    None => false,
-                };
-
-                if should_remove {
-                    target_map.remove(key);
-                }
-            }
-        }
-        (target_value, common_value) => {
-            if target_value == common_value {
-                *target_value = Value::Null;
-            }
-        }
-    }
 }

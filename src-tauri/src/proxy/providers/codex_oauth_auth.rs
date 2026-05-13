@@ -22,8 +22,6 @@ const CODEX_USER_AGENT: &str = "cc-switch-codex-oauth";
 pub enum CodexOAuthError {
     #[error("等待用户授权中")]
     AuthorizationPending,
-    #[error("用户拒绝授权")]
-    AccessDenied,
     #[error("Device Code 已过期")]
     ExpiredToken,
     #[error("OAuth Token 获取失败: {0}")]
@@ -492,6 +490,7 @@ impl CodexOAuthManager {
         self.resolve_default_account_id().await
     }
 
+    #[cfg(test)]
     pub async fn list_accounts(&self) -> Vec<ManagedAuthAccount> {
         let accounts = self.accounts.read().await.clone();
         let default_id = self.resolve_default_account_id().await;
@@ -548,6 +547,7 @@ impl CodexOAuthManager {
         Ok(())
     }
 
+    #[cfg(test)]
     pub async fn is_authenticated(&self) -> bool {
         !self.accounts.read().await.is_empty()
     }

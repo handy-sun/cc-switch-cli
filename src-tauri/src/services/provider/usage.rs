@@ -383,6 +383,7 @@ impl ProviderService {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn extract_credentials(
         provider: &Provider,
         app_type: &AppType,

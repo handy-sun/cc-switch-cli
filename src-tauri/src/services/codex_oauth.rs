@@ -63,10 +63,6 @@ impl CodexOAuthService {
         Self::manager().default_account_id().await
     }
 
-    pub async fn list_accounts() -> Vec<ManagedAuthAccount> {
-        Self::manager().list_accounts().await
-    }
-
     pub async fn remove_account(account_id: &str) -> Result<(), CodexOAuthError> {
         Self::manager().remove_account(account_id).await
     }

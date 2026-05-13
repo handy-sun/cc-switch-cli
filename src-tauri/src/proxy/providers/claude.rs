@@ -253,10 +253,6 @@ impl Default for ClaudeAdapter {
 }
 
 impl ProviderAdapter for ClaudeAdapter {
-    fn name(&self) -> &'static str {
-        "Claude"
-    }
-
     fn extract_base_url(&self, provider: &Provider) -> Result<String, ProxyError> {
         if self.is_codex_oauth(provider) {
             return Ok("https://chatgpt.com/backend-api/codex".to_string());

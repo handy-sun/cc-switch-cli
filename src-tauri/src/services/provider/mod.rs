@@ -205,24 +205,6 @@ impl ProviderService {
         }
     }
 
-    fn parse_common_opencode_config_snippet(snippet: &str) -> Result<Value, AppError> {
-        let value: Value = serde_json::from_str(snippet).map_err(|e| {
-            AppError::localized(
-                "common_config.opencode.invalid_json",
-                format!("OpenCode 通用配置片段不是有效的 JSON：{e}"),
-                format!("OpenCode common config snippet is not valid JSON: {e}"),
-            )
-        })?;
-        if !value.is_object() {
-            return Err(AppError::localized(
-                "common_config.opencode.not_object",
-                "OpenCode 通用配置片段必须是 JSON 对象",
-                "OpenCode common config snippet must be a JSON object",
-            ));
-        }
-        Ok(value)
-    }
-
     fn run_transaction<R, F>(state: &AppState, f: F) -> Result<R, AppError>
     where
         F: FnOnce(&mut MultiAppConfig) -> Result<(R, Option<PostCommitAction>), AppError>,
