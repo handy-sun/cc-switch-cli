@@ -3129,6 +3129,14 @@ pub mod texts {
         }
     }
 
+    pub fn tui_skills_agent_import_title() -> &'static str {
+        if is_chinese() {
+            "从智能体导入技能"
+        } else {
+            "Import Skills from Agent"
+        }
+    }
+
     pub fn tui_skills_unmanaged_hint() -> &'static str {
         tui_skills_import_description()
     }
@@ -3138,6 +3146,14 @@ pub mod texts {
             "选择要导入到 CC Switch 统一管理的技能。"
         } else {
             "Select skills to import into CC Switch unified management."
+        }
+    }
+
+    pub fn tui_skills_agent_import_description() -> &'static str {
+        if is_chinese() {
+            "选择要导入到 CC Switch 的智能体技能。"
+        } else {
+            "Select agent skills to import into CC Switch."
         }
     }
 
@@ -3265,6 +3281,14 @@ pub mod texts {
             "导入已有"
         } else {
             "Import Existing"
+        }
+    }
+
+    pub fn tui_skills_action_import_agent() -> &'static str {
+        if is_chinese() {
+            "从智能体导入"
+        } else {
+            "Import from Agent"
         }
     }
 
@@ -6168,6 +6192,14 @@ pub mod texts {
             "未发现可导入的技能。所有技能已在 CC Switch 中统一管理。"
         } else {
             "No skills to import found. All skills are already managed by CC Switch."
+        }
+    }
+
+    pub fn skills_no_agent_installed_found() -> &'static str {
+        if is_chinese() {
+            "未发现智能体已安装且尚未由 CC Switch 管理的技能。"
+        } else {
+            "No agent-installed skills found that are not already managed by CC Switch."
         }
     }
 

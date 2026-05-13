@@ -35,6 +35,7 @@ pub(super) fn render_skills_installed(
                 ("m", texts::tui_key_apps()),
                 ("f", texts::tui_key_discover()),
                 ("i", texts::tui_skills_action_import_existing()),
+                ("s", texts::tui_skills_action_import_agent()),
                 ("d", texts::tui_key_uninstall()),
             ],
         );

@@ -224,6 +224,14 @@ pub fn tui_skills_import_title() -> &'static str {
     }
 }
 
+pub fn tui_skills_agent_import_title() -> &'static str {
+    if is_chinese() {
+        "从智能体导入技能"
+    } else {
+        "Import Skills from Agent"
+    }
+}
+
 pub fn tui_skills_unmanaged_hint() -> &'static str {
     tui_skills_import_description()
 }
@@ -233,6 +241,14 @@ pub fn tui_skills_import_description() -> &'static str {
         "选择要导入到 CC Switch 统一管理的技能。"
     } else {
         "Select skills to import into CC Switch unified management."
+    }
+}
+
+pub fn tui_skills_agent_import_description() -> &'static str {
+    if is_chinese() {
+        "选择要导入到 CC Switch 的智能体技能。"
+    } else {
+        "Select agent skills to import into CC Switch."
     }
 }
 
@@ -360,6 +376,14 @@ pub fn tui_skills_action_import_existing() -> &'static str {
         "导入已有"
     } else {
         "Import Existing"
+    }
+}
+
+pub fn tui_skills_action_import_agent() -> &'static str {
+    if is_chinese() {
+        "从智能体导入"
+    } else {
+        "Import from Agent"
     }
 }
 

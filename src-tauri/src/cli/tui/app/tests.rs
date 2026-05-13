@@ -233,6 +233,19 @@ mod tests {
     }
 
     #[test]
+    fn skills_s_requests_agent_import_picker() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Skills;
+        app.focus = Focus::Content;
+
+        let action = app.on_key(key(KeyCode::Char('s')), &data());
+        assert!(
+            matches!(action, Action::SkillsOpenAgentImport),
+            "s in Skills page should open the agent-installed skill import flow"
+        );
+    }
+
+    #[test]
     fn skills_f_opens_discover_page() {
         let mut app = App::new(Some(AppType::Claude));
         app.route = Route::Skills;

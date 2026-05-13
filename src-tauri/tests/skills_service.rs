@@ -13,6 +13,20 @@ fn write_skill_md(dir: &std::path::Path, name: &str, description: &str) {
     .expect("write SKILL.md");
 }
 
+struct EnvVarGuard {
+    key: &'static str,
+    old_value: Option<std::ffi::OsString>,
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.old_value {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
+
 #[test]
 fn list_installed_triggers_initial_ssot_migration() {
     let _guard = lock_test_mutex();
@@ -153,6 +167,147 @@ fn scan_unmanaged_includes_agents_and_ssot_sources() {
         .found_in
         .iter()
         .any(|source| source == "cc-switch-tui"));
+}
+
+#[test]
+fn scan_agent_installed_only_reads_agents_dir_and_excludes_managed() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".agents").join("skills").join("agent-skill"),
+        "Agent Skill",
+        "Found in agent",
+    );
+    write_skill_md(
+        &home.join(".claude").join("skills").join("claude-skill"),
+        "Claude Skill",
+        "Should not be returned",
+    );
+    write_skill_md(
+        &home.join(".agents").join("skills").join("managed-skill"),
+        "Managed Skill",
+        "Already managed",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["managed-skill".to_string()])
+        .expect("seed managed skill from agent");
+    assert_eq!(imported.len(), 1);
+
+    let agent_skills = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "agent-skill"),
+        "agent skill should be visible"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.found_in == vec!["agents".to_string()]),
+        "agent-only scan should only label agents as the source"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "claude-skill"),
+        "app skill directories should not be included"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "managed-skill"),
+        "already managed agent skills should not be offered again"
+    );
+}
+
+#[test]
+fn import_from_agent_prefers_agents_dir_when_same_directory_exists_elsewhere() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".claude").join("skills").join("same-skill"),
+        "Claude Skill",
+        "From claude",
+    );
+    write_skill_md(
+        &home.join(".agents").join("skills").join("same-skill"),
+        "Agent Skill",
+        "From agent",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["same-skill".to_string()])
+        .expect("import should prefer agents source");
+
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].name, "Agent Skill");
+    assert_eq!(imported[0].description.as_deref(), Some("From agent"));
+    assert!(
+        imported[0].apps.is_empty(),
+        "agent import should only add the skill to CC Switch management"
+    );
+
+    let ssot_skill_md = SkillService::get_ssot_dir()
+        .expect("get ssot dir")
+        .join("same-skill")
+        .join("SKILL.md");
+    let content = std::fs::read_to_string(ssot_skill_md).expect("read imported skill");
+    assert!(
+        content.contains("name: Agent Skill"),
+        "SSOT content should come from ~/.agents/skills"
+    );
+}
+
+#[test]
+fn import_from_agent_reads_codex_home_skills_without_enabling_codex() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_codex_home = std::env::var_os("CODEX_HOME");
+    let _codex_home_guard = EnvVarGuard {
+        key: "CODEX_HOME",
+        old_value: old_codex_home,
+    };
+    let codex_home = home.join(".codex-agent-home");
+    unsafe {
+        std::env::set_var("CODEX_HOME", &codex_home);
+    }
+
+    write_skill_md(
+        &codex_home.join("skills").join("codex-agent-skill"),
+        "Codex Agent Skill",
+        "From Codex agent",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "codex-agent-skill"
+                && skill.found_in == vec!["codex-agent".to_string()]),
+        "Codex agent home skills should be offered by the agent import flow"
+    );
+
+    let imported = SkillService::import_from_agent(vec!["codex-agent-skill".to_string()])
+        .expect("import Codex agent skill");
+
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].name, "Codex Agent Skill");
+    assert!(
+        imported[0].apps.is_empty(),
+        "agent import should add the skill to CC Switch management without enabling Codex"
+    );
+    assert!(
+        SkillService::get_ssot_dir()
+            .expect("get ssot dir")
+            .join("codex-agent-skill")
+            .exists(),
+        "Codex agent skill should be copied into SSOT"
+    );
 }
 
 #[test]

@@ -244,6 +244,11 @@ pub enum Overlay {
         selected_idx: usize,
         selected: HashSet<String>,
     },
+    SkillsAgentImportPicker {
+        skills: Vec<crate::services::skill::UnmanagedSkill>,
+        selected_idx: usize,
+        selected: HashSet<String>,
+    },
     SkillsSyncMethodPicker {
         selected: usize,
     },

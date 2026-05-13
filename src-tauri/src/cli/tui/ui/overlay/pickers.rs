@@ -801,6 +801,48 @@ pub(super) fn render_skills_import_picker_overlay(
     selected_idx: usize,
     selected: &std::collections::HashSet<String>,
 ) {
+    render_skill_import_picker_overlay(
+        frame,
+        content_area,
+        theme,
+        texts::tui_skills_import_title(),
+        texts::tui_skills_import_description(),
+        skills,
+        selected_idx,
+        selected,
+    );
+}
+
+pub(super) fn render_skills_agent_import_picker_overlay(
+    frame: &mut Frame<'_>,
+    content_area: Rect,
+    theme: &theme::Theme,
+    skills: &[crate::services::skill::UnmanagedSkill],
+    selected_idx: usize,
+    selected: &std::collections::HashSet<String>,
+) {
+    render_skill_import_picker_overlay(
+        frame,
+        content_area,
+        theme,
+        texts::tui_skills_agent_import_title(),
+        texts::tui_skills_agent_import_description(),
+        skills,
+        selected_idx,
+        selected,
+    );
+}
+
+fn render_skill_import_picker_overlay(
+    frame: &mut Frame<'_>,
+    content_area: Rect,
+    theme: &theme::Theme,
+    title: &str,
+    description: &str,
+    skills: &[crate::services::skill::UnmanagedSkill],
+    selected_idx: usize,
+    selected: &std::collections::HashSet<String>,
+) {
     let area = centered_rect_fixed(OVERLAY_FIXED_LG.0, OVERLAY_FIXED_LG.1, content_area);
     frame.render_widget(Clear, area);
 
@@ -808,7 +850,7 @@ pub(super) fn render_skills_import_picker_overlay(
         .borders(Borders::ALL)
         .border_type(BorderType::Plain)
         .border_style(overlay_border_style(theme, true))
-        .title(texts::tui_skills_import_title())
+        .title(title)
         .style(if theme.no_color {
             Style::default()
         } else {
@@ -839,7 +881,7 @@ pub(super) fn render_skills_import_picker_overlay(
     );
 
     frame.render_widget(
-        Paragraph::new(texts::tui_skills_import_description())
+        Paragraph::new(description)
             .style(Style::default().fg(theme.dim))
             .wrap(Wrap { trim: false }),
         chunks[1],

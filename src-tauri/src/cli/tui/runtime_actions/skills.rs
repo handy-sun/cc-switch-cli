@@ -6,7 +6,8 @@ use crate::services::{skill::SyncMethod, SkillService};
 use super::super::app::{LoadingKind, Overlay, ToastKind};
 use super::super::route::Route;
 use super::super::runtime_skills::{
-    finish_skills_import_with, open_skills_import_picker, parse_repo_spec, scan_unmanaged_skills,
+    finish_skills_import_with, open_agent_skills_import_picker, open_skills_import_picker,
+    parse_repo_spec, scan_unmanaged_skills,
 };
 use super::RuntimeActionContext;
 
@@ -185,6 +186,10 @@ pub(super) fn open_import(ctx: &mut RuntimeActionContext<'_>) -> Result<(), AppE
     open_skills_import_picker(ctx.app)
 }
 
+pub(super) fn open_agent_import(ctx: &mut RuntimeActionContext<'_>) -> Result<(), AppError> {
+    open_agent_skills_import_picker(ctx.app)
+}
+
 pub(super) fn scan_unmanaged(ctx: &mut RuntimeActionContext<'_>) -> Result<(), AppError> {
     scan_unmanaged_skills(ctx.app)
 }
@@ -200,6 +205,22 @@ pub(super) fn import_from_apps(
         super::super::data::UiData::load,
     )?;
     ctx.app.skills_unmanaged_results = SkillService::scan_unmanaged()?;
+    ctx.app.skills_unmanaged_selected.clear();
+    ctx.app.skills_unmanaged_idx = 0;
+    Ok(())
+}
+
+pub(super) fn import_from_agent(
+    ctx: &mut RuntimeActionContext<'_>,
+    directories: Vec<String>,
+) -> Result<(), AppError> {
+    finish_skills_import_with(
+        ctx.app,
+        ctx.data,
+        || SkillService::import_from_agent(directories),
+        super::super::data::UiData::load,
+    )?;
+    ctx.app.skills_unmanaged_results = SkillService::scan_agent_installed()?;
     ctx.app.skills_unmanaged_selected.clear();
     ctx.app.skills_unmanaged_idx = 0;
     Ok(())

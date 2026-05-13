@@ -118,6 +118,32 @@ fn opening_skills_import_picker_selects_all_by_default() {
 }
 
 #[test]
+fn opening_agent_skills_import_picker_selects_all_by_default() {
+    let mut app = App::new(Some(AppType::Claude));
+
+    open_agent_skills_import_picker_with(&mut app, || {
+        Ok(vec![crate::services::skill::UnmanagedSkill {
+            directory: "agent-skill".to_string(),
+            name: "Agent Skill".to_string(),
+            description: Some("A local agent skill".to_string()),
+            found_in: vec!["agents".to_string()],
+        }])
+    })
+    .expect("agent import picker should open");
+
+    assert!(matches!(
+        &app.overlay,
+        Overlay::SkillsAgentImportPicker {
+            skills,
+            selected_idx: 0,
+            selected,
+        } if skills.len() == 1
+            && skills[0].directory == "agent-skill"
+            && selected.contains("agent-skill")
+    ));
+}
+
+#[test]
 fn skills_import_from_apps_uses_info_toast_kind() {
     let mut app = App::new(Some(AppType::OpenCode));
     let mut data = UiData::default();

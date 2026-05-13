@@ -176,6 +176,18 @@ pub(crate) fn render_overlay(
             *selected_idx,
             selected,
         ),
+        Overlay::SkillsAgentImportPicker {
+            skills,
+            selected_idx,
+            selected,
+        } => super::pickers::render_skills_agent_import_picker_overlay(
+            frame,
+            content_area,
+            theme,
+            skills,
+            *selected_idx,
+            selected,
+        ),
         Overlay::SkillsSyncMethodPicker { selected } => {
             super::pickers::render_skills_sync_method_picker_overlay(
                 frame,

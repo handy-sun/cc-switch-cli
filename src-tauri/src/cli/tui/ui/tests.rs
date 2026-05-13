@@ -2461,6 +2461,34 @@ fn skills_import_overlay_uses_friendly_copy() {
 }
 
 #[test]
+fn skills_agent_import_overlay_uses_agent_copy() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Claude));
+    app.route = Route::Skills;
+    app.focus = Focus::Content;
+    app.overlay = Overlay::SkillsAgentImportPicker {
+        skills: vec![UnmanagedSkill {
+            directory: "agent-skill".to_string(),
+            name: "Agent Skill".to_string(),
+            description: Some("A local agent skill".to_string()),
+            found_in: vec!["agents".to_string()],
+        }],
+        selected_idx: 0,
+        selected: std::iter::once("agent-skill".to_string()).collect(),
+    };
+
+    let data = minimal_data(&app.app_type);
+    let buf = render(&app, &data);
+    let all = all_text(&buf);
+
+    assert!(all.contains(texts::tui_skills_agent_import_title()));
+    assert!(all.contains(texts::tui_skills_agent_import_description()));
+    assert!(all.contains("Agent Skill"));
+}
+
+#[test]
 fn mcp_page_renders_opencode_column() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");

@@ -289,6 +289,14 @@ pub fn skills_no_unmanaged_found() -> &'static str {
     }
 }
 
+pub fn skills_no_agent_installed_found() -> &'static str {
+    if is_chinese() {
+        "未发现智能体已安装且尚未由 CC Switch 管理的技能。"
+    } else {
+        "No agent-installed skills found that are not already managed by CC Switch."
+    }
+}
+
 pub fn skills_select_unmanaged_to_import() -> &'static str {
     if is_chinese() {
         "选择要导入的技能："

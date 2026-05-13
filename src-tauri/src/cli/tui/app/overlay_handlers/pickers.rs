@@ -42,6 +42,9 @@ impl App {
         if let Some(action) = self.handle_skills_import_picker_key(key) {
             return Some(action);
         }
+        if let Some(action) = self.handle_skills_agent_import_picker_key(key) {
+            return Some(action);
+        }
         if let Some(action) = self.handle_failover_queue_manager_key(key, data) {
             return Some(action);
         }
@@ -746,6 +749,61 @@ impl App {
                     .collect();
                 self.overlay = Overlay::None;
                 Action::SkillsImportFromApps { directories }
+            }
+            _ => Action::None,
+        })
+    }
+
+    fn handle_skills_agent_import_picker_key(&mut self, key: KeyEvent) -> Option<Action> {
+        let Overlay::SkillsAgentImportPicker {
+            skills,
+            selected_idx,
+            selected,
+        } = &mut self.overlay
+        else {
+            return None;
+        };
+
+        Some(match key.code {
+            KeyCode::Esc => {
+                self.overlay = Overlay::None;
+                Action::None
+            }
+            KeyCode::Up => {
+                *selected_idx = selected_idx.saturating_sub(1);
+                Action::None
+            }
+            KeyCode::Down => {
+                if !skills.is_empty() {
+                    *selected_idx = (*selected_idx + 1).min(skills.len() - 1);
+                }
+                Action::None
+            }
+            KeyCode::Char('x') | KeyCode::Char(' ') => {
+                let Some(skill) = skills.get(*selected_idx) else {
+                    return Some(Action::None);
+                };
+                if selected.contains(&skill.directory) {
+                    selected.remove(&skill.directory);
+                } else {
+                    selected.insert(skill.directory.clone());
+                }
+                Action::None
+            }
+            KeyCode::Char('r') => Action::SkillsOpenAgentImport,
+            KeyCode::Char('i') | KeyCode::Enter => {
+                if selected.is_empty() {
+                    self.push_toast(texts::tui_toast_no_unmanaged_selected(), ToastKind::Info);
+                    return Some(Action::None);
+                }
+
+                let directories = skills
+                    .iter()
+                    .filter(|skill| selected.contains(&skill.directory))
+                    .map(|skill| skill.directory.clone())
+                    .collect();
+                self.overlay = Overlay::None;
+                Action::SkillsImportFromAgent { directories }
             }
             _ => Action::None,
         })

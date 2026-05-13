@@ -194,9 +194,13 @@ pub(crate) fn handle_action(
             enabled,
         } => skills::repo_toggle_enabled(&mut ctx, owner, name, enabled),
         Action::SkillsOpenImport => skills::open_import(&mut ctx),
+        Action::SkillsOpenAgentImport => skills::open_agent_import(&mut ctx),
         Action::SkillsScanUnmanaged => skills::scan_unmanaged(&mut ctx),
         Action::SkillsImportFromApps { directories } => {
             skills::import_from_apps(&mut ctx, directories)
+        }
+        Action::SkillsImportFromAgent { directories } => {
+            skills::import_from_agent(&mut ctx, directories)
         }
         Action::EditorDiscard => {
             ctx.app.editor = None;

@@ -78,6 +78,7 @@ impl App {
                 Action::None
             }
             KeyCode::Char('i') => Action::SkillsOpenImport,
+            KeyCode::Char('s') => Action::SkillsOpenAgentImport,
             KeyCode::Char('f') => self.push_route_and_switch(Route::SkillsDiscover),
             _ => Action::None,
         }

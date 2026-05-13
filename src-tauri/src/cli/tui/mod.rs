@@ -30,7 +30,8 @@ use runtime_actions::{
 };
 #[cfg(test)]
 use runtime_skills::{
-    finish_skills_import_with, open_skills_import_picker_with, scan_unmanaged_skills_with,
+    finish_skills_import_with, open_agent_skills_import_picker_with,
+    open_skills_import_picker_with, scan_unmanaged_skills_with,
 };
 pub(crate) use runtime_systems::build_stream_check_result_lines;
 #[cfg(test)]

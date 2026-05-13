@@ -273,6 +273,27 @@ fn get_agents_skills_dir() -> Option<PathBuf> {
         .filter(|path| path.exists())
 }
 
+fn get_codex_agent_skills_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|home| home.join(".codex")))?;
+    let skills_dir = base.join("skills");
+    skills_dir.exists().then_some(skills_dir)
+}
+
+fn agent_skill_sources() -> Vec<(PathBuf, String, bool)> {
+    let mut sources = Vec::new();
+    if let Some(agents_dir) = get_agents_skills_dir() {
+        sources.push((agents_dir, "agents".to_string(), true));
+    }
+    if let Some(codex_dir) = get_codex_agent_skills_dir() {
+        if !sources.iter().any(|(path, _, _)| path == &codex_dir) {
+            sources.push((codex_dir, "codex-agent".to_string(), false));
+        }
+    }
+    sources
+}
+
 fn parse_agents_lock() -> HashMap<String, LockRepoInfo> {
     let path = match dirs::home_dir() {
         Some(home) => home.join(".agents").join(".skill-lock.json"),
@@ -1199,6 +1220,60 @@ impl SkillService {
         Ok(unmanaged.into_values().collect())
     }
 
+    pub fn scan_agent_installed() -> Result<Vec<UnmanagedSkill>, AppError> {
+        let index = Self::load_index()?;
+        let managed: HashSet<String> = index.skills.keys().cloned().collect();
+        let sources = agent_skill_sources();
+        if sources.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut agent_skills: HashMap<String, UnmanagedSkill> = HashMap::new();
+
+        for (source_dir, label, _) in sources {
+            let entries = match fs::read_dir(&source_dir) {
+                Ok(entries) => entries,
+                Err(_) => continue,
+            };
+
+            for entry in entries {
+                let entry = match entry {
+                    Ok(entry) => entry,
+                    Err(_) => continue,
+                };
+                let path = entry.path();
+                if !path.is_dir() {
+                    continue;
+                }
+
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                if dir_name.starts_with('.') || managed.contains(&dir_name) {
+                    continue;
+                }
+
+                let skill_md = path.join("SKILL.md");
+                let (name, description) = Self::read_skill_name_desc(&skill_md, &dir_name);
+                agent_skills
+                    .entry(dir_name.clone())
+                    .and_modify(|skill| {
+                        if !skill.found_in.contains(&label) {
+                            skill.found_in.push(label.clone());
+                        }
+                    })
+                    .or_insert(UnmanagedSkill {
+                        directory: dir_name,
+                        name,
+                        description,
+                        found_in: vec![label.clone()],
+                    });
+            }
+        }
+
+        let mut agent_skills: Vec<_> = agent_skills.into_values().collect();
+        agent_skills.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        Ok(agent_skills)
+    }
+
     pub fn import_from_apps(directories: Vec<String>) -> Result<Vec<InstalledSkill>, AppError> {
         let mut index = Self::load_index()?;
         let ssot_dir = Self::get_ssot_dir()?;
@@ -1263,6 +1338,69 @@ impl SkillService {
             };
 
             index.skills.insert(dir_name.clone(), skill.clone());
+            imported.push(skill);
+        }
+
+        Self::save_index(&index)?;
+        Ok(imported)
+    }
+
+    pub fn import_from_agent(directories: Vec<String>) -> Result<Vec<InstalledSkill>, AppError> {
+        let mut index = Self::load_index()?;
+        let ssot_dir = Self::get_ssot_dir()?;
+        let agents_lock = parse_agents_lock();
+        let sources = agent_skill_sources();
+        if sources.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut imported = Vec::new();
+
+        merge_repos_from_lock(
+            &mut index.repos,
+            &agents_lock,
+            directories.iter().map(|s| s.as_str()),
+        );
+
+        for dir_name in directories {
+            if index.skills.contains_key(&dir_name) {
+                continue;
+            }
+
+            let source = sources.iter().find_map(|(base, _, uses_lock)| {
+                let path = base.join(&dir_name);
+                path.is_dir().then_some((path, *uses_lock))
+            });
+            let Some((source, uses_lock)) = source else {
+                continue;
+            };
+
+            let dest = ssot_dir.join(&dir_name);
+            if !dest.exists() {
+                Self::copy_dir_recursive(&source, &dest)?;
+            }
+
+            let skill_md = dest.join("SKILL.md");
+            let (name, description) = Self::read_skill_name_desc(&skill_md, &dir_name);
+            let (id, repo_owner, repo_name, repo_branch, readme_url) = if uses_lock {
+                build_repo_info_from_lock(&agents_lock, &dir_name)
+            } else {
+                (format!("local:{dir_name}"), None, None, None, None)
+            };
+
+            let skill = InstalledSkill {
+                id,
+                name,
+                description,
+                directory: dir_name.clone(),
+                repo_owner,
+                repo_name,
+                repo_branch,
+                readme_url,
+                apps: SkillApps::default(),
+                installed_at: Utc::now().timestamp(),
+            };
+
+            index.skills.insert(dir_name, skill.clone());
             imported.push(skill);
         }
 
