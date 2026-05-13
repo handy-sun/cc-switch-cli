@@ -589,7 +589,8 @@ fn render_local_env_check_card(
         (LocalTool::Codex, "Codex", cols0[1]),
         (LocalTool::Gemini, "Gemini", cols0[2]),
         (LocalTool::OpenCode, "OpenCode", cols1[0]),
-        (LocalTool::Hermes, "Hermes", cols1[1]),
+        (LocalTool::OpenClaw, "OpenClaw", cols1[1]),
+        (LocalTool::Hermes, "Hermes", cols1[2]),
     ];
 
     for (tool, display_name, cell_area) in cells {

@@ -33,6 +33,7 @@ use crate::{
     commands::workspace::{DailyMemoryFileInfo, ALLOWED_FILES},
     openclaw_config::write_openclaw_config_source,
     provider::Provider,
+    services::local_env_check::{LocalTool, ToolCheckResult, ToolCheckStatus},
     services::skill::{InstalledSkill, SkillApps, SkillRepo, SyncMethod, UnmanagedSkill},
     test_support::{lock_test_home_and_settings, set_test_home_override, TestHomeSettingsLock},
 };
@@ -1564,8 +1565,34 @@ fn home_shows_local_env_check_section() {
     let all = all_text(&buf);
 
     assert!(all.contains("Local environment check"));
+    assert!(all.contains("OpenClaw"), "{all}");
     assert!(all.contains("Hermes"), "{all}");
     assert!(!all.contains("Session Context"));
+}
+
+#[test]
+fn home_shows_openclaw_local_env_version() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::OpenClaw));
+    app.route = Route::Main;
+    app.focus = Focus::Content;
+    app.local_env_loading = false;
+    app.local_env_results = vec![ToolCheckResult {
+        tool: LocalTool::OpenClaw,
+        display_name: "OpenClaw",
+        status: ToolCheckStatus::Ok {
+            version: "1.2.3".to_string(),
+        },
+    }];
+    let data = minimal_data(&app.app_type);
+
+    let buf = render(&app, &data);
+    let all = all_text(&buf);
+
+    assert!(all.contains("OpenClaw"), "{all}");
+    assert!(all.contains("1.2.3"), "{all}");
 }
 
 #[test]

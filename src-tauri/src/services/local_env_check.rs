@@ -8,6 +8,7 @@ pub enum LocalTool {
     Codex,
     Gemini,
     OpenCode,
+    OpenClaw,
     Hermes,
 }
 
@@ -39,6 +40,12 @@ const TOOL_SPECS: &[(LocalTool, &str, &str, &[&str])] = &[
         "opencode",
         "OpenCode",
         &["--version", "version"],
+    ),
+    (
+        LocalTool::OpenClaw,
+        "openclaw",
+        "OpenClaw",
+        &["--version", "version", "-v"],
     ),
     (
         LocalTool::Hermes,
@@ -174,6 +181,16 @@ mod tests {
             *tool == LocalTool::Hermes
                 && *bin == "hermes"
                 && *display_name == "Hermes"
+                && args.contains(&"--version")
+        }));
+    }
+
+    #[test]
+    fn local_tool_specs_include_openclaw() {
+        assert!(TOOL_SPECS.iter().any(|(tool, bin, display_name, args)| {
+            *tool == LocalTool::OpenClaw
+                && *bin == "openclaw"
+                && *display_name == "OpenClaw"
                 && args.contains(&"--version")
         }));
     }
