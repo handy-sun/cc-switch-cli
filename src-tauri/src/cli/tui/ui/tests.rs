@@ -2509,6 +2509,7 @@ fn mcp_page_renders_opencode_column() {
                 codex: false,
                 gemini: false,
                 opencode: true,
+                openclaw: true,
                 hermes: false,
             },
             description: None,
@@ -2523,6 +2524,7 @@ fn mcp_page_renders_opencode_column() {
     let header = app_columns_header_line(&content);
 
     assert!(header.contains("OpenCode"), "{header}");
+    assert!(header.contains("OpenClaw"), "{header}");
     assert!(header.contains("Hermes"), "{header}");
     assert!(!header.contains("opencode"), "{header}");
 }
@@ -2592,6 +2594,7 @@ fn mcp_page_shows_summary_bar() {
                     codex: false,
                     gemini: false,
                     opencode: true,
+                    openclaw: false,
                     hermes: false,
                 },
                 description: None,
@@ -2611,6 +2614,7 @@ fn mcp_page_shows_summary_bar() {
                     codex: true,
                     gemini: false,
                     opencode: false,
+                    openclaw: true,
                     hermes: false,
                 },
                 description: None,
@@ -2626,6 +2630,7 @@ fn mcp_page_shows_summary_bar() {
 
     assert!(all.contains("Installed"));
     assert!(all.contains("Claude: 1"));
+    assert!(all.contains("OpenClaw: 1"));
 }
 
 #[test]

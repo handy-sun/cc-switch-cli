@@ -186,6 +186,8 @@ pub(crate) fn mcp_field_label_and_value(
         McpAddField::AppCodex => texts::tui_label_app_codex().to_string(),
         McpAddField::AppGemini => texts::tui_label_app_gemini().to_string(),
         McpAddField::AppOpenCode => texts::tui_label_app_opencode().to_string(),
+        McpAddField::AppOpenClaw => texts::tui_label_app_openclaw().to_string(),
+        McpAddField::AppHermes => texts::tui_label_app_hermes().to_string(),
     };
 
     let value = match field {
@@ -214,6 +216,20 @@ pub(crate) fn mcp_field_label_and_value(
         }
         McpAddField::AppOpenCode => {
             if mcp.apps.opencode {
+                format!("[{}]", texts::tui_marker_active())
+            } else {
+                "[ ]".to_string()
+            }
+        }
+        McpAddField::AppOpenClaw => {
+            if mcp.apps.openclaw {
+                format!("[{}]", texts::tui_marker_active())
+            } else {
+                "[ ]".to_string()
+            }
+        }
+        McpAddField::AppHermes => {
+            if mcp.apps.hermes {
                 format!("[{}]", texts::tui_marker_active())
             } else {
                 "[ ]".to_string()
@@ -251,6 +267,8 @@ pub(crate) fn mcp_field_editor_line(
         McpAddField::AppCodex => format!("codex = {}", mcp.apps.codex),
         McpAddField::AppGemini => format!("gemini = {}", mcp.apps.gemini),
         McpAddField::AppOpenCode => format!("opencode = {}", mcp.apps.opencode),
+        McpAddField::AppOpenClaw => format!("openclaw = {}", mcp.apps.openclaw),
+        McpAddField::AppHermes => format!("hermes = {}", mcp.apps.hermes),
         _ => String::new(),
     };
 
@@ -286,7 +304,9 @@ fn mcp_add_form_key_items(
                         McpAddField::AppClaude
                         | McpAddField::AppCodex
                         | McpAddField::AppGemini
-                        | McpAddField::AppOpenCode,
+                        | McpAddField::AppOpenCode
+                        | McpAddField::AppOpenClaw
+                        | McpAddField::AppHermes,
                     ) => texts::tui_key_toggle(),
                     _ => texts::tui_key_edit_mode(),
                 };
@@ -299,7 +319,9 @@ fn mcp_add_form_key_items(
                         McpAddField::AppClaude
                         | McpAddField::AppCodex
                         | McpAddField::AppGemini
-                        | McpAddField::AppOpenCode,
+                        | McpAddField::AppOpenCode
+                        | McpAddField::AppOpenClaw
+                        | McpAddField::AppHermes,
                     ) => {
                         keys.push(("Space", texts::tui_key_toggle()));
                     }

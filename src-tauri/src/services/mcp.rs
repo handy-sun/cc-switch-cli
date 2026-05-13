@@ -163,7 +163,9 @@ impl McpService {
             AppType::OpenCode => {
                 mcp::sync_single_server_to_opencode(cfg, &server.id, &server.server)?;
             }
-            AppType::OpenClaw => {}
+            AppType::OpenClaw => {
+                mcp::sync_single_server_to_openclaw(cfg, &server.id, &server.server)?;
+            }
             AppType::Hermes => {
                 mcp::sync_single_server_to_hermes(cfg, &server.id, &server.server)?;
             }
@@ -190,7 +192,7 @@ impl McpService {
             AppType::Codex => mcp::remove_server_from_codex(id)?,
             AppType::Gemini => mcp::remove_server_from_gemini(id)?,
             AppType::OpenCode => mcp::remove_server_from_opencode(id)?,
-            AppType::OpenClaw => {}
+            AppType::OpenClaw => mcp::remove_server_from_openclaw(id)?,
             AppType::Hermes => mcp::remove_server_from_hermes(id)?,
         }
         Ok(())
@@ -201,10 +203,6 @@ impl McpService {
         let servers = Self::get_all_servers(state)?;
 
         for app in AppType::all() {
-            if matches!(app, AppType::OpenClaw) {
-                continue;
-            }
-
             for server in servers.values() {
                 if server.apps.is_enabled_for(&app) {
                     Self::sync_server_to_app(state, server, &app)?;
@@ -296,6 +294,15 @@ impl McpService {
     pub fn import_from_opencode(state: &AppState) -> Result<usize, AppError> {
         let mut cfg = state.config.write()?;
         let count = mcp::import_from_opencode(&mut cfg)?;
+        drop(cfg);
+        state.save()?;
+        Ok(count)
+    }
+
+    /// 从 OpenClaw 导入 MCP
+    pub fn import_from_openclaw(state: &AppState) -> Result<usize, AppError> {
+        let mut cfg = state.config.write()?;
+        let count = mcp::import_from_openclaw(&mut cfg)?;
         drop(cfg);
         state.save()?;
         Ok(count)

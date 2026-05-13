@@ -194,6 +194,8 @@ pub enum McpAddField {
     AppCodex,
     AppGemini,
     AppOpenCode,
+    AppOpenClaw,
+    AppHermes,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

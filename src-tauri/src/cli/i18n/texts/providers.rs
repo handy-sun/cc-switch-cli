@@ -178,6 +178,22 @@ pub fn tui_label_app_opencode() -> &'static str {
     }
 }
 
+pub fn tui_label_app_openclaw() -> &'static str {
+    if is_chinese() {
+        "应用: OpenClaw"
+    } else {
+        "App: OpenClaw"
+    }
+}
+
+pub fn tui_label_app_hermes() -> &'static str {
+    if is_chinese() {
+        "应用: Hermes"
+    } else {
+        "App: Hermes"
+    }
+}
+
 pub fn tui_form_templates_title() -> &'static str {
     if is_chinese() {
         "模板"

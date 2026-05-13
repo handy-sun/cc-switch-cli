@@ -292,6 +292,52 @@ fn import_mcp_from_gemini_imports_http_and_sse_servers() {
 }
 
 #[test]
+fn import_mcp_from_openclaw_imports_registry_servers() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let openclaw_dir = home.join(".openclaw");
+    fs::create_dir_all(&openclaw_dir).expect("create openclaw dir");
+    fs::write(
+        openclaw_dir.join("openclaw.json"),
+        r#"{
+  mcp: {
+    servers: {
+      context7: {
+        command: "uvx",
+        args: ["context7-mcp"],
+      },
+      docs: {
+        url: "https://mcp.example.com/stream",
+        transport: "streamable-http",
+      },
+    },
+  },
+}"#,
+    )
+    .expect("seed openclaw config");
+
+    let state = state_from_config(MultiAppConfig::default());
+
+    let changed =
+        McpService::import_from_openclaw(&state).expect("import mcp from openclaw succeeds");
+    assert_eq!(changed, 2);
+
+    let guard = state.config.read().expect("lock config");
+    let servers = guard.mcp.servers.as_ref().expect("unified servers");
+    let context7 = servers.get("context7").expect("context7 imported");
+    assert!(context7.apps.openclaw);
+    assert_eq!(context7.server["type"], json!("stdio"));
+    assert_eq!(context7.server["command"], json!("uvx"));
+
+    let docs = servers.get("docs").expect("docs imported");
+    assert!(docs.apps.openclaw);
+    assert_eq!(docs.server["type"], json!("http"));
+    assert_eq!(docs.server["url"], json!("https://mcp.example.com/stream"));
+}
+
+#[test]
 fn set_mcp_enabled_for_codex_writes_live_config() {
     let _guard = lock_test_mutex();
     reset_test_fs();
@@ -330,6 +376,7 @@ fn set_mcp_enabled_for_codex_writes_live_config() {
                 codex: false, // 初始未启用
                 gemini: false,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,
@@ -384,6 +431,71 @@ fn set_mcp_enabled_for_codex_writes_live_config() {
 }
 
 #[test]
+fn set_mcp_enabled_for_openclaw_writes_live_config() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let openclaw_dir = home.join(".openclaw");
+    fs::create_dir_all(&openclaw_dir).expect("create openclaw dir");
+    let openclaw_path = openclaw_dir.join("openclaw.json");
+    fs::write(
+        &openclaw_path,
+        r#"{
+  models: {
+    mode: "merge",
+    providers: {},
+  },
+}"#,
+    )
+    .expect("seed openclaw config");
+
+    let mut config = MultiAppConfig::default();
+    config.mcp.servers = Some(HashMap::new());
+    config.mcp.servers.as_mut().unwrap().insert(
+        "docs".into(),
+        McpServer {
+            id: "docs".to_string(),
+            name: "Docs".to_string(),
+            server: json!({
+                "type": "http",
+                "url": "https://mcp.example.com/stream",
+                "headers": {
+                    "Authorization": "Bearer token"
+                }
+            }),
+            apps: McpApps {
+                claude: false,
+                codex: false,
+                gemini: false,
+                opencode: false,
+                openclaw: false,
+                hermes: false,
+            },
+            description: None,
+            homepage: None,
+            docs: None,
+            tags: Vec::new(),
+        },
+    );
+
+    let state = state_from_config(config);
+
+    McpService::toggle_app(&state, "docs", AppType::OpenClaw, true)
+        .expect("toggle openclaw mcp should succeed");
+
+    let raw = fs::read_to_string(&openclaw_path).expect("read openclaw config");
+    let parsed: serde_json::Value = json5::from_str(&raw).expect("parse openclaw json5");
+    let docs = parsed
+        .pointer("/mcp/servers/docs")
+        .expect("OpenClaw config should include docs server");
+
+    assert_eq!(docs["url"], json!("https://mcp.example.com/stream"));
+    assert_eq!(docs["transport"], json!("streamable-http"));
+    assert_eq!(docs["headers"]["Authorization"], json!("Bearer token"));
+}
+
+#[test]
 fn set_mcp_enabled_for_codex_writes_remote_headers_once_as_http_headers() {
     let _guard = lock_test_mutex();
     reset_test_fs();
@@ -418,6 +530,7 @@ fn set_mcp_enabled_for_codex_writes_remote_headers_once_as_http_headers() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,
@@ -476,6 +589,7 @@ fn upsert_server_skips_live_sync_when_gemini_uninitialized() {
             codex: false,
             gemini: true,
             opencode: false,
+            openclaw: false,
             hermes: false,
         },
         description: None,
@@ -545,6 +659,7 @@ fn upsert_server_disables_app_removes_from_gemini_live() {
                 codex: false,
                 gemini: true,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,
@@ -569,6 +684,7 @@ fn upsert_server_disables_app_removes_from_gemini_live() {
             codex: false,
             gemini: false,
             opencode: false,
+            openclaw: false,
             hermes: false,
         },
         description: None,
@@ -632,6 +748,7 @@ fn sync_all_enabled_removes_disabled_gemini_server_from_live_config() {
                 codex: false,
                 gemini: false,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,

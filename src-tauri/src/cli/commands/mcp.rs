@@ -265,7 +265,7 @@ fn import_servers(app_type: AppType) -> Result<(), AppError> {
         AppType::Codex => McpService::import_from_codex(&state)?,
         AppType::Gemini => McpService::import_from_gemini(&state)?,
         AppType::OpenCode => 0,
-        AppType::OpenClaw => 0,
+        AppType::OpenClaw => McpService::import_from_openclaw(&state)?,
         AppType::Hermes => McpService::import_from_hermes(&state)?,
     };
 

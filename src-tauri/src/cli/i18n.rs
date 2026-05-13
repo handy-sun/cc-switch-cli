@@ -1918,6 +1918,22 @@ pub mod texts {
         }
     }
 
+    pub fn tui_label_app_openclaw() -> &'static str {
+        if is_chinese() {
+            "应用: OpenClaw"
+        } else {
+            "App: OpenClaw"
+        }
+    }
+
+    pub fn tui_label_app_hermes() -> &'static str {
+        if is_chinese() {
+            "应用: Hermes"
+        } else {
+            "App: Hermes"
+        }
+    }
+
     pub fn tui_form_templates_title() -> &'static str {
         if is_chinese() {
             "模板"
@@ -3271,15 +3287,16 @@ pub mod texts {
         codex: usize,
         gemini: usize,
         opencode: usize,
+        openclaw: usize,
         hermes: usize,
     ) -> String {
         if is_chinese() {
             format!(
-                "已安装 · Claude: {claude} · Codex: {codex} · Gemini: {gemini} · OpenCode: {opencode} · Hermes: {hermes}"
+                "已安装 · Claude: {claude} · Codex: {codex} · Gemini: {gemini} · OpenCode: {opencode} · OpenClaw: {openclaw} · Hermes: {hermes}"
             )
         } else {
             format!(
-                "Installed · Claude: {claude} · Codex: {codex} · Gemini: {gemini} · OpenCode: {opencode} · Hermes: {hermes}"
+                "Installed · Claude: {claude} · Codex: {codex} · Gemini: {gemini} · OpenCode: {opencode} · OpenClaw: {openclaw} · Hermes: {hermes}"
             )
         }
     }

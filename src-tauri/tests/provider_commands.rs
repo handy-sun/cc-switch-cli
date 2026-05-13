@@ -253,6 +253,7 @@ command = "echo"
                 codex: true,
                 gemini: false,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,

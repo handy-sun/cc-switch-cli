@@ -16,6 +16,8 @@ pub struct McpApps {
     #[serde(default)]
     pub opencode: bool,
     #[serde(default)]
+    pub openclaw: bool,
+    #[serde(default)]
     pub hermes: bool,
 }
 
@@ -27,7 +29,7 @@ impl McpApps {
             AppType::Codex => self.codex,
             AppType::Gemini => self.gemini,
             AppType::OpenCode => self.opencode,
-            AppType::OpenClaw => false,
+            AppType::OpenClaw => self.openclaw,
             AppType::Hermes => self.hermes,
         }
     }
@@ -39,7 +41,7 @@ impl McpApps {
             AppType::Codex => self.codex = enabled,
             AppType::Gemini => self.gemini = enabled,
             AppType::OpenCode => self.opencode = enabled,
-            AppType::OpenClaw => {}
+            AppType::OpenClaw => self.openclaw = enabled,
             AppType::Hermes => self.hermes = enabled,
         }
     }
@@ -59,6 +61,9 @@ impl McpApps {
         if self.opencode {
             apps.push(AppType::OpenCode);
         }
+        if self.openclaw {
+            apps.push(AppType::OpenClaw);
+        }
         if self.hermes {
             apps.push(AppType::Hermes);
         }
@@ -67,7 +72,12 @@ impl McpApps {
 
     /// 检查是否所有应用都未启用
     pub fn is_empty(&self) -> bool {
-        !self.claude && !self.codex && !self.gemini && !self.opencode && !self.hermes
+        !self.claude
+            && !self.codex
+            && !self.gemini
+            && !self.opencode
+            && !self.openclaw
+            && !self.hermes
     }
 }
 
@@ -303,12 +313,13 @@ pub enum AppType {
     Hermes,
 }
 
-/// Apps shown in the MCP server picker (no OpenClaw — it has no MCP support).
+/// Apps shown in the MCP server picker.
 pub const MCP_PICKER_APPS: &[AppType] = &[
     AppType::Claude,
     AppType::Codex,
     AppType::Gemini,
     AppType::OpenCode,
+    AppType::OpenClaw,
     AppType::Hermes,
 ];
 
@@ -820,6 +831,7 @@ impl MultiAppConfig {
             AppType::Codex,
             AppType::Gemini,
             AppType::OpenCode,
+            AppType::OpenClaw,
             AppType::Hermes,
         ] {
             let old_servers = match app {
@@ -827,7 +839,7 @@ impl MultiAppConfig {
                 AppType::Codex => &self.mcp.codex.servers,
                 AppType::Gemini => &self.mcp.gemini.servers,
                 AppType::OpenCode => &self.mcp.opencode.servers,
-                AppType::OpenClaw => continue,
+                AppType::OpenClaw => &self.mcp.openclaw.servers,
                 AppType::Hermes => &self.mcp.hermes.servers,
             };
 
@@ -1209,7 +1221,7 @@ mod tests {
     }
 
     #[test]
-    fn migrate_mcp_to_unified_keeps_openclaw_legacy_servers_unmigrated() {
+    fn migrate_mcp_to_unified_imports_openclaw_legacy_servers() {
         let mut config = MultiAppConfig::default();
         config.mcp.servers = None;
         config.mcp.claude.servers.insert(
@@ -1241,12 +1253,10 @@ mod tests {
             .expect("unified servers should exist");
         assert!(unified.contains_key("claude-tool"));
         assert!(
-            !unified.contains_key("openclaw-tool"),
-            "OpenClaw MCP should remain in legacy storage until upstream supports it"
-        );
-        assert!(
-            config.mcp.openclaw.servers.contains_key("openclaw-tool"),
-            "OpenClaw legacy MCP entries should be preserved"
+            unified
+                .get("openclaw-tool")
+                .is_some_and(|server| server.apps.openclaw),
+            "OpenClaw legacy MCP entries should migrate into unified storage"
         );
     }
 }

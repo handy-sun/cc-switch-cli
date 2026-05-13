@@ -2377,7 +2377,7 @@ mod tests {
     }
 
     #[test]
-    fn mcp_apps_picker_from_openclaw_targets_hermes_last_visible_row() {
+    fn mcp_apps_picker_from_openclaw_targets_openclaw_row() {
         let mut app = App::new(Some(AppType::OpenClaw));
         app.route = Route::Mcp;
         app.focus = Focus::Content;
@@ -2414,6 +2414,42 @@ mod tests {
                     && !apps.codex
                     && !apps.gemini
                     && !apps.opencode
+                    && apps.openclaw
+                    && !apps.hermes
+        ));
+    }
+
+    #[test]
+    fn mcp_apps_picker_can_select_hermes_after_openclaw() {
+        let mut app = App::new(Some(AppType::OpenClaw));
+        app.route = Route::Mcp;
+        app.focus = Focus::Content;
+
+        let mut data = UiData::default();
+        data.mcp.rows.push(super::super::data::McpRow {
+            id: "m1".to_string(),
+            server: crate::app_config::McpServer {
+                id: "m1".to_string(),
+                name: "Server".to_string(),
+                server: json!({}),
+                apps: crate::app_config::McpApps::default(),
+                description: None,
+                homepage: None,
+                docs: None,
+                tags: vec![],
+            },
+        });
+
+        app.on_key(key(KeyCode::Char('m')), &data);
+        app.on_key(key(KeyCode::Down), &data);
+
+        let action = app.on_key(key(KeyCode::Char('x')), &data);
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            &app.overlay,
+            Overlay::McpAppsPicker { selected, apps, .. }
+                if *selected == 5
+                    && !apps.openclaw
                     && apps.hermes
         ));
     }

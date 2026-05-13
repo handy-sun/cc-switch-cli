@@ -394,6 +394,7 @@ pub fn import_from_claude(config: &mut MultiAppConfig) -> Result<usize, AppError
                         codex: false,
                         gemini: false,
                         opencode: false,
+                        openclaw: false,
                         hermes: false,
                     },
                     description: None,
@@ -620,6 +621,7 @@ pub fn import_from_codex(config: &mut MultiAppConfig) -> Result<usize, AppError>
                             codex: true,
                             gemini: false,
                             opencode: false,
+                            openclaw: false,
                             hermes: false,
                         },
                         description: None,
@@ -783,6 +785,7 @@ pub fn import_from_gemini(config: &mut MultiAppConfig) -> Result<usize, AppError
                         codex: false,
                         gemini: true,
                         opencode: false,
+                        openclaw: false,
                         hermes: false,
                     },
                     description: None,
@@ -952,6 +955,7 @@ pub fn import_from_opencode(config: &mut MultiAppConfig) -> Result<usize, AppErr
                         codex: false,
                         gemini: false,
                         opencode: true,
+                        openclaw: false,
                         hermes: false,
                     },
                     description: None,
@@ -1390,6 +1394,205 @@ pub fn remove_server_from_opencode(id: &str) -> Result<(), AppError> {
 }
 
 // ============================================================================
+// OpenClaw MCP: format conversion, sync, import
+// ============================================================================
+
+fn convert_to_openclaw_mcp_spec(spec: &Value) -> Result<Value, AppError> {
+    let obj = spec
+        .as_object()
+        .ok_or_else(|| AppError::McpValidation("MCP spec must be a JSON object".into()))?;
+    let typ = obj.get("type").and_then(|v| v.as_str()).unwrap_or("stdio");
+    let mut result = serde_json::Map::new();
+
+    match typ {
+        "stdio" => {
+            if let Some(command) = obj.get("command") {
+                result.insert("command".into(), command.clone());
+            }
+            if let Some(args) = obj.get("args") {
+                if args.is_array() && !args.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+                    result.insert("args".into(), args.clone());
+                }
+            }
+            if let Some(env) = obj.get("env") {
+                if env.is_object() && !env.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+                    result.insert("env".into(), env.clone());
+                }
+            }
+            for key in ["cwd", "workingDirectory"] {
+                if let Some(value) = obj.get(key) {
+                    result.insert(key.to_string(), value.clone());
+                }
+            }
+        }
+        "sse" | "http" => {
+            if let Some(url) = obj.get("url") {
+                result.insert("url".into(), url.clone());
+            }
+            if typ == "http" {
+                result.insert("transport".into(), json!("streamable-http"));
+            } else if obj
+                .get("transport")
+                .and_then(|value| value.as_str())
+                .is_some()
+            {
+                result.insert("transport".into(), json!("sse"));
+            }
+            if let Some(headers) = obj.get("headers") {
+                if headers.is_object() && !headers.as_object().map(|o| o.is_empty()).unwrap_or(true)
+                {
+                    result.insert("headers".into(), headers.clone());
+                }
+            }
+            if let Some(timeout) = obj.get("connectionTimeoutMs") {
+                result.insert("connectionTimeoutMs".into(), timeout.clone());
+            }
+        }
+        _ => {
+            return Err(AppError::McpValidation(format!("Unknown MCP type: {typ}")));
+        }
+    }
+
+    Ok(Value::Object(result))
+}
+
+fn convert_from_openclaw_mcp_spec(id: &str, spec: &Value) -> Result<Value, AppError> {
+    let obj = spec
+        .as_object()
+        .ok_or_else(|| AppError::McpValidation("OpenClaw MCP spec must be a JSON object".into()))?;
+    let mut result = serde_json::Map::new();
+
+    if obj.contains_key("command") {
+        result.insert("type".into(), json!("stdio"));
+        for key in ["command", "args", "env", "cwd", "workingDirectory"] {
+            if let Some(value) = obj.get(key) {
+                result.insert(key.to_string(), value.clone());
+            }
+        }
+    } else if obj.contains_key("url") {
+        let transport = obj.get("transport").and_then(|value| value.as_str());
+        let typ = match transport {
+            Some("streamable-http") | Some("http") => "http",
+            _ => "sse",
+        };
+        result.insert("type".into(), json!(typ));
+        if let Some(url) = obj.get("url") {
+            result.insert("url".into(), url.clone());
+        }
+        if let Some(headers) = obj.get("headers") {
+            if headers.is_object() && !headers.as_object().map(|o| o.is_empty()).unwrap_or(true) {
+                result.insert("headers".into(), headers.clone());
+            }
+        }
+        if let Some(timeout) = obj.get("connectionTimeoutMs") {
+            result.insert("connectionTimeoutMs".into(), timeout.clone());
+        }
+    } else {
+        return Err(AppError::McpValidation(format!(
+            "OpenClaw MCP server '{id}' has neither 'command' nor 'url' field"
+        )));
+    }
+
+    Ok(Value::Object(result))
+}
+
+pub fn sync_single_server_to_openclaw(
+    _config: &MultiAppConfig,
+    id: &str,
+    server_spec: &Value,
+) -> Result<(), AppError> {
+    if !crate::sync_policy::should_sync_live(&AppType::OpenClaw) {
+        return Ok(());
+    }
+
+    let spec = convert_to_openclaw_mcp_spec(server_spec)?;
+    crate::openclaw_config::set_mcp_server(id, spec).map(|_| ())
+}
+
+pub fn remove_server_from_openclaw(id: &str) -> Result<(), AppError> {
+    if !crate::sync_policy::should_sync_live(&AppType::OpenClaw) {
+        return Ok(());
+    }
+
+    crate::openclaw_config::remove_mcp_server(id).map(|_| ())
+}
+
+pub fn import_from_openclaw(config: &mut MultiAppConfig) -> Result<usize, AppError> {
+    use crate::app_config::{McpApps, McpServer};
+
+    let map = crate::openclaw_config::get_mcp_servers()?;
+    if map.is_empty() {
+        return Ok(0);
+    }
+
+    if config.mcp.servers.is_none() {
+        config.mcp.servers = Some(HashMap::new());
+    }
+    let servers = config.mcp.servers.as_mut().unwrap();
+
+    let mut changed = 0;
+    let mut errors = Vec::new();
+
+    for (id, spec) in map.iter() {
+        let unified = match convert_from_openclaw_mcp_spec(id, spec) {
+            Ok(spec) => spec,
+            Err(err) => {
+                log::warn!("Skip invalid OpenClaw MCP server '{id}': {err}");
+                errors.push(format!("{id}: {err}"));
+                continue;
+            }
+        };
+
+        if let Err(err) = validate_server_spec(&unified) {
+            log::warn!("Skip invalid MCP server '{id}' after conversion: {err}");
+            errors.push(format!("{id}: {err}"));
+            continue;
+        }
+
+        if let Some(existing) = servers.get_mut(id) {
+            if !existing.apps.openclaw {
+                existing.apps.openclaw = true;
+                changed += 1;
+                log::info!("MCP server '{id}' enabled for OpenClaw");
+            }
+        } else {
+            servers.insert(
+                id.clone(),
+                McpServer {
+                    id: id.clone(),
+                    name: id.clone(),
+                    server: unified,
+                    apps: McpApps {
+                        claude: false,
+                        codex: false,
+                        gemini: false,
+                        opencode: false,
+                        openclaw: true,
+                        hermes: false,
+                    },
+                    description: None,
+                    homepage: None,
+                    docs: None,
+                    tags: Vec::new(),
+                },
+            );
+            changed += 1;
+            log::info!("Imported new MCP server '{id}' from OpenClaw");
+        }
+    }
+
+    if !errors.is_empty() {
+        log::warn!(
+            "Import completed with {} failures: {:?}",
+            errors.len(),
+            errors
+        );
+    }
+
+    Ok(changed)
+}
+
+// ============================================================================
 // Hermes MCP: format conversion, sync, import
 // ============================================================================
 
@@ -1631,6 +1834,7 @@ pub fn import_from_hermes(config: &mut MultiAppConfig) -> Result<usize, AppError
                         codex: false,
                         gemini: false,
                         opencode: false,
+                        openclaw: false,
                         hermes: true,
                     },
                     description: None,

@@ -29,6 +29,7 @@ pub(super) fn render_mcp(
         centered_cell("Codex"),
         centered_cell("Gemini"),
         centered_cell("OpenCode"),
+        centered_cell("OpenClaw"),
         centered_cell("Hermes"),
     ])
     .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD));
@@ -52,6 +53,11 @@ pub(super) fn render_mcp(
                 texts::tui_marker_inactive()
             }),
             centered_cell(if row.server.apps.opencode {
+                texts::tui_marker_active()
+            } else {
+                texts::tui_marker_inactive()
+            }),
+            centered_cell(if row.server.apps.openclaw {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
@@ -121,6 +127,11 @@ pub(super) fn render_mcp(
         data.mcp
             .rows
             .iter()
+            .filter(|row| row.server.apps.openclaw)
+            .count(),
+        data.mcp
+            .rows
+            .iter()
             .filter(|row| row.server.apps.hermes)
             .count(),
     );
@@ -133,6 +144,7 @@ pub(super) fn render_mcp(
             Constraint::Length(8),
             Constraint::Length(8),
             Constraint::Length(8),
+            Constraint::Length(10),
             Constraint::Length(10),
             Constraint::Length(9),
         ],

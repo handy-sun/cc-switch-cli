@@ -127,8 +127,8 @@ impl Database {
                 tx.execute(
                     "INSERT OR REPLACE INTO mcp_servers (
                         id, name, server_config, description, homepage, docs, tags,
-                        enabled_claude, enabled_codex, enabled_gemini, enabled_opencode, enabled_hermes
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                        enabled_claude, enabled_codex, enabled_gemini, enabled_opencode, enabled_openclaw, enabled_hermes
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                     params![
                         id,
                         server.name,
@@ -141,6 +141,7 @@ impl Database {
                         server.apps.codex,
                         server.apps.gemini,
                         server.apps.opencode,
+                        server.apps.openclaw,
                         server.apps.hermes,
                     ],
                 )

@@ -216,6 +216,7 @@ fn setup_switched_codex_state_with_managed_mcp() -> (TempDir, EnvGuard, AppState
                 codex: true,
                 gemini: false,
                 opencode: false,
+                openclaw: false,
                 hermes: false,
             },
             description: None,

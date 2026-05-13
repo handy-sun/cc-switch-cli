@@ -670,6 +670,59 @@ pub fn get_provider(id: &str) -> Result<Option<Value>, AppError> {
     Ok(get_providers()?.get(id).cloned())
 }
 
+pub fn get_mcp_servers() -> Result<Map<String, Value>, AppError> {
+    let config = read_openclaw_config()?;
+    Ok(config
+        .get("mcp")
+        .and_then(|mcp| mcp.get("servers"))
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default())
+}
+
+pub fn set_mcp_server(id: &str, server_config: Value) -> Result<OpenClawWriteOutcome, AppError> {
+    let mut full_config = read_openclaw_config()?;
+    {
+        let root = ensure_object(&mut full_config);
+        let mcp = root
+            .entry("mcp".to_string())
+            .or_insert_with(|| json!({ "servers": {} }));
+        let servers = ensure_object(mcp)
+            .entry("servers".to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+        ensure_object(servers).insert(id.to_string(), server_config);
+    }
+
+    let mcp_value = full_config
+        .get("mcp")
+        .cloned()
+        .unwrap_or_else(|| json!({ "servers": {} }));
+    write_root_section("mcp", &mcp_value)
+}
+
+pub fn remove_mcp_server(id: &str) -> Result<OpenClawWriteOutcome, AppError> {
+    let mut config = read_openclaw_config()?;
+    let mut removed = false;
+
+    if let Some(servers) = config
+        .get_mut("mcp")
+        .and_then(|mcp| mcp.get_mut("servers"))
+        .and_then(Value::as_object_mut)
+    {
+        removed = servers.remove(id).is_some();
+    }
+
+    if !removed {
+        return Ok(OpenClawWriteOutcome::default());
+    }
+
+    let mcp_value = config
+        .get("mcp")
+        .cloned()
+        .unwrap_or_else(|| json!({ "servers": {} }));
+    write_root_section("mcp", &mcp_value)
+}
+
 pub fn set_provider(id: &str, provider_config: Value) -> Result<OpenClawWriteOutcome, AppError> {
     let mut full_config = read_openclaw_config()?;
     {
