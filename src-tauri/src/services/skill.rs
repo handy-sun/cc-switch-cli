@@ -273,12 +273,103 @@ fn get_agents_skills_dir() -> Option<PathBuf> {
         .filter(|path| path.exists())
 }
 
-fn get_codex_agent_skills_dir() -> Option<PathBuf> {
-    let base = std::env::var_os("CODEX_HOME")
-        .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|home| home.join(".codex")))?;
-    let skills_dir = base.join("skills");
-    skills_dir.exists().then_some(skills_dir)
+fn expand_env_config_dir(path: PathBuf) -> PathBuf {
+    let lossy = path.to_string_lossy();
+    if lossy == "~" {
+        return crate::config::home_dir().unwrap_or(path);
+    }
+
+    if let Some(rest) = lossy
+        .strip_prefix("~/")
+        .or_else(|| lossy.strip_prefix("~\\"))
+    {
+        if let Some(home) = crate::config::home_dir() {
+            return home.join(rest);
+        }
+    }
+
+    path
+}
+
+fn config_dir_from_env(key: &str) -> Option<PathBuf> {
+    let raw = std::env::var_os(key)?;
+    let path = PathBuf::from(raw);
+    if path.as_os_str().is_empty() || path.to_string_lossy().trim().is_empty() {
+        return None;
+    }
+    Some(expand_env_config_dir(path))
+}
+
+fn get_app_env_config_dir(app: &AppType) -> Option<PathBuf> {
+    match app {
+        AppType::Claude => config_dir_from_env("CLAUDE_CONFIG_DIR"),
+        AppType::Codex => config_dir_from_env("CODEX_HOME"),
+        AppType::Hermes => config_dir_from_env("HERMES_HOME"),
+        AppType::Gemini | AppType::OpenCode | AppType::OpenClaw => None,
+    }
+}
+
+fn get_app_fallback_skills_dir(app: &AppType) -> Result<PathBuf, AppError> {
+    match app {
+        AppType::Claude => {
+            if let Some(custom) = crate::settings::get_claude_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+        AppType::Codex => {
+            if let Some(custom) = crate::settings::get_codex_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+        AppType::Gemini => {
+            if let Some(custom) = crate::settings::get_gemini_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+        AppType::OpenCode => {
+            if let Some(custom) = crate::settings::get_opencode_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+        AppType::OpenClaw => {
+            if let Some(custom) = crate::settings::get_openclaw_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+        AppType::Hermes => {
+            if let Some(custom) = crate::settings::get_hermes_override_dir() {
+                return Ok(custom.join("skills"));
+            }
+        }
+    }
+
+    let home = dirs::home_dir().ok_or_else(|| {
+        AppError::Message(format_skill_error(
+            "GET_HOME_DIR_FAILED",
+            &[],
+            Some("checkPermission"),
+        ))
+    })?;
+
+    Ok(match app {
+        AppType::Claude => home.join(".claude").join("skills"),
+        AppType::Codex => home.join(".codex").join("skills"),
+        AppType::Gemini => home.join(".gemini").join("skills"),
+        AppType::OpenCode => home.join(".config").join("opencode").join("skills"),
+        AppType::OpenClaw => home.join(".openclaw").join("skills"),
+        AppType::Hermes => home.join(".hermes").join("skills"),
+    })
+}
+
+fn get_app_skills_dir_for_scan(app: &AppType) -> Result<PathBuf, AppError> {
+    if let Some(env_dir) = get_app_env_config_dir(app) {
+        let env_skills_dir = env_dir.join("skills");
+        if env_skills_dir.is_dir() {
+            return Ok(env_skills_dir);
+        }
+    }
+
+    get_app_fallback_skills_dir(app)
 }
 
 #[derive(Debug, Clone)]
@@ -315,7 +406,7 @@ fn agent_skill_sources() -> Vec<AgentSkillSource> {
     }
 
     for app in SkillService::supported_skill_apps() {
-        let Ok(app_dir) = SkillService::get_app_skills_dir(&app) else {
+        let Ok(app_dir) = get_app_skills_dir_for_scan(&app) else {
             continue;
         };
         if app_dir.exists() {
@@ -327,16 +418,6 @@ fn agent_skill_sources() -> Vec<AgentSkillSource> {
                 Some(app),
             );
         }
-    }
-
-    if let Some(codex_dir) = get_codex_agent_skills_dir() {
-        push_agent_skill_source(
-            &mut sources,
-            codex_dir,
-            "codex-agent".to_string(),
-            false,
-            Some(AppType::Codex),
-        );
     }
 
     sources
@@ -441,6 +522,33 @@ fn merge_repos_from_lock(
     }
 }
 
+fn parse_bundled_skill_manifest(skills_dir: &Path) -> HashSet<String> {
+    let manifest_path = skills_dir.join(".bundled_manifest");
+    let content = match fs::read_to_string(manifest_path) {
+        Ok(content) => content,
+        Err(_) => return HashSet::new(),
+    };
+
+    content
+        .lines()
+        .filter_map(|line| line.split_once(':').map(|(name, _)| name.trim()))
+        .filter(|name| !name.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn bundled_skill_names_for_source(source: &AgentSkillSource) -> HashSet<String> {
+    if source.app.as_ref() == Some(&AppType::Hermes) {
+        parse_bundled_skill_manifest(&source.path)
+    } else {
+        HashSet::new()
+    }
+}
+
+fn should_offer_agent_skill_dir(path: &Path, dir_name: &str, bundled: &HashSet<String>) -> bool {
+    !dir_name.starts_with('.') && path.join("SKILL.md").is_file() && !bundled.contains(dir_name)
+}
+
 // ============================================================================
 // SkillService
 // ============================================================================
@@ -501,56 +609,11 @@ impl SkillService {
     }
 
     pub fn get_app_skills_dir(app: &AppType) -> Result<PathBuf, AppError> {
-        // Override directories follow the same pattern as upstream: <override>/skills
-        match app {
-            AppType::Claude => {
-                if let Some(custom) = crate::settings::get_claude_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
-            AppType::Codex => {
-                if let Some(custom) = crate::settings::get_codex_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
-            AppType::Gemini => {
-                if let Some(custom) = crate::settings::get_gemini_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
-            AppType::OpenCode => {
-                if let Some(custom) = crate::settings::get_opencode_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
-            AppType::OpenClaw => {
-                if let Some(custom) = crate::settings::get_openclaw_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
-            AppType::Hermes => {
-                if let Some(custom) = crate::settings::get_hermes_override_dir() {
-                    return Ok(custom.join("skills"));
-                }
-            }
+        if let Some(env_dir) = get_app_env_config_dir(app) {
+            return Ok(env_dir.join("skills"));
         }
 
-        let home = dirs::home_dir().ok_or_else(|| {
-            AppError::Message(format_skill_error(
-                "GET_HOME_DIR_FAILED",
-                &[],
-                Some("checkPermission"),
-            ))
-        })?;
-
-        Ok(match app {
-            AppType::Claude => home.join(".claude").join("skills"),
-            AppType::Codex => home.join(".codex").join("skills"),
-            AppType::Gemini => home.join(".gemini").join("skills"),
-            AppType::OpenCode => home.join(".config").join("opencode").join("skills"),
-            AppType::OpenClaw => home.join(".openclaw").join("skills"),
-            AppType::Hermes => home.join(".hermes").join("skills"),
-        })
+        get_app_fallback_skills_dir(app)
     }
 
     // ---------------------------------------------------------------------
@@ -636,7 +699,7 @@ impl SkillService {
 
                 let mut source: Option<PathBuf> = None;
                 for app in candidates {
-                    let app_dir = match Self::get_app_skills_dir(&app) {
+                    let app_dir = match get_app_skills_dir_for_scan(&app) {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
@@ -685,7 +748,7 @@ impl SkillService {
         let mut discovered: HashMap<String, SkillApps> = HashMap::new();
 
         for app in Self::supported_skill_apps() {
-            let app_dir = match Self::get_app_skills_dir(&app) {
+            let app_dir = match get_app_skills_dir_for_scan(&app) {
                 Ok(d) => d,
                 Err(_) => continue,
             };
@@ -1212,7 +1275,7 @@ impl SkillService {
 
         let mut scan_sources: Vec<(PathBuf, String)> = Vec::new();
         for app in Self::supported_skill_apps() {
-            if let Ok(app_dir) = Self::get_app_skills_dir(&app) {
+            if let Ok(app_dir) = get_app_skills_dir_for_scan(&app) {
                 scan_sources.push((app_dir, app.as_str().to_string()));
             }
         }
@@ -1270,14 +1333,20 @@ impl SkillService {
 
     pub fn scan_agent_installed() -> Result<Vec<UnmanagedSkill>, AppError> {
         let index = Self::load_index()?;
-        let sources = agent_skill_sources();
+        let sources: Vec<_> = agent_skill_sources()
+            .into_iter()
+            .map(|source| {
+                let bundled = bundled_skill_names_for_source(&source);
+                (source, bundled)
+            })
+            .collect();
         if sources.is_empty() {
             return Ok(Vec::new());
         }
 
         let mut agent_skills: HashMap<String, UnmanagedSkill> = HashMap::new();
 
-        for source in sources {
+        for (source, bundled) in sources {
             let entries = match fs::read_dir(&source.path) {
                 Ok(entries) => entries,
                 Err(_) => continue,
@@ -1294,7 +1363,7 @@ impl SkillService {
                 }
 
                 let dir_name = entry.file_name().to_string_lossy().to_string();
-                if dir_name.starts_with('.') {
+                if !should_offer_agent_skill_dir(&path, &dir_name, &bundled) {
                     continue;
                 }
 
@@ -1346,7 +1415,7 @@ impl SkillService {
 
         let mut search_sources: Vec<(PathBuf, String)> = Vec::new();
         for app in Self::supported_skill_apps() {
-            if let Ok(app_dir) = Self::get_app_skills_dir(&app) {
+            if let Ok(app_dir) = get_app_skills_dir_for_scan(&app) {
                 search_sources.push((app_dir, app.as_str().to_string()));
             }
         }
@@ -1407,7 +1476,13 @@ impl SkillService {
         let mut index = Self::load_index()?;
         let ssot_dir = Self::get_ssot_dir()?;
         let agents_lock = parse_agents_lock();
-        let sources = agent_skill_sources();
+        let sources: Vec<_> = agent_skill_sources()
+            .into_iter()
+            .map(|source| {
+                let bundled = bundled_skill_names_for_source(&source);
+                (source, bundled)
+            })
+            .collect();
         if sources.is_empty() {
             return Ok(Vec::new());
         }
@@ -1424,9 +1499,9 @@ impl SkillService {
             let mut source_uses_lock = false;
             let mut apps = SkillApps::default();
 
-            for source in &sources {
+            for (source, bundled) in &sources {
                 let path = source.path.join(&dir_name);
-                if !path.is_dir() {
+                if !path.is_dir() || !should_offer_agent_skill_dir(&path, &dir_name, &bundled) {
                     continue;
                 }
 

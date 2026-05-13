@@ -231,6 +231,93 @@ fn scan_agent_installed_reads_all_agent_tool_dirs_and_excludes_noop_managed() {
 }
 
 #[test]
+fn scan_agent_installed_excludes_hermes_bundled_and_category_dirs() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let hermes_skills = home.join(".hermes").join("skills");
+
+    std::fs::create_dir_all(&hermes_skills).expect("create Hermes skills dir");
+    std::fs::write(
+        hermes_skills.join(".bundled_manifest"),
+        "builtin-skill:abc123\nnested-skill:def456\n",
+    )
+    .expect("write bundled manifest");
+    write_skill_md(
+        &hermes_skills.join("builtin-skill"),
+        "Builtin Skill",
+        "Bundled by Hermes",
+    );
+    write_skill_md(
+        &hermes_skills.join("user-skill"),
+        "User Skill",
+        "Installed by user",
+    );
+    write_skill_md(
+        &hermes_skills.join("category").join("nested-skill"),
+        "Nested Skill",
+        "Bundled inside category",
+    );
+
+    let agent_skills = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "user-skill"
+                && skill.found_in.iter().any(|source| source == "hermes")),
+        "non-bundled Hermes skills should still be visible"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "builtin-skill"),
+        "Hermes bundled skills should not be offered for import"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "category"),
+        "category directories without a root SKILL.md should not be offered"
+    );
+}
+
+#[test]
+fn import_from_agent_ignores_hermes_bundled_skill() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let hermes_skills = home.join(".hermes").join("skills");
+
+    std::fs::create_dir_all(&hermes_skills).expect("create Hermes skills dir");
+    std::fs::write(
+        hermes_skills.join(".bundled_manifest"),
+        "builtin-skill:abc123\n",
+    )
+    .expect("write bundled manifest");
+    write_skill_md(
+        &hermes_skills.join("builtin-skill"),
+        "Builtin Skill",
+        "Bundled by Hermes",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["builtin-skill".to_string()])
+        .expect("import should ignore bundled skill without failing");
+
+    assert!(
+        imported.is_empty(),
+        "direct import should not claim Hermes bundled skills"
+    );
+    assert!(
+        !SkillService::get_ssot_dir()
+            .expect("get ssot dir")
+            .join("builtin-skill")
+            .exists(),
+        "bundled skill should not be copied into SSOT"
+    );
+}
+
+#[test]
 fn import_from_agent_prefers_agents_dir_when_same_directory_exists_elsewhere() {
     let _guard = lock_test_mutex();
     reset_test_fs();
@@ -295,7 +382,7 @@ fn import_from_agent_reads_codex_home_skills_and_enables_codex() {
         scan_result
             .iter()
             .any(|skill| skill.directory == "codex-agent-skill"
-                && skill.found_in == vec!["codex-agent".to_string()]),
+                && skill.found_in == vec!["codex".to_string()]),
         "Codex agent home skills should be offered by the agent import flow"
     );
 
@@ -315,6 +402,170 @@ fn import_from_agent_reads_codex_home_skills_and_enables_codex() {
             .exists(),
         "Codex agent skill should be copied into SSOT"
     );
+}
+
+#[test]
+fn scan_agent_installed_prefers_claude_config_dir_env_over_default() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_claude_config_dir = std::env::var_os("CLAUDE_CONFIG_DIR");
+    let _claude_config_guard = EnvVarGuard {
+        key: "CLAUDE_CONFIG_DIR",
+        old_value: old_claude_config_dir,
+    };
+    let claude_home = home.join(".claude-env-home");
+    unsafe {
+        std::env::set_var("CLAUDE_CONFIG_DIR", &claude_home);
+    }
+
+    write_skill_md(
+        &claude_home.join("skills").join("env-claude-skill"),
+        "Env Claude Skill",
+        "From CLAUDE_CONFIG_DIR",
+    );
+    write_skill_md(
+        &home
+            .join(".claude")
+            .join("skills")
+            .join("fallback-claude-skill"),
+        "Fallback Claude Skill",
+        "From default Claude dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "env-claude-skill"
+                && skill.found_in == vec!["claude".to_string()]),
+        "CLAUDE_CONFIG_DIR skills should be offered first"
+    );
+    assert!(
+        scan_result
+            .iter()
+            .all(|skill| skill.directory != "fallback-claude-skill"),
+        "default Claude skills should not be scanned when CLAUDE_CONFIG_DIR skills exist"
+    );
+}
+
+#[test]
+fn scan_agent_installed_falls_back_when_claude_config_dir_env_has_no_skills() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_claude_config_dir = std::env::var_os("CLAUDE_CONFIG_DIR");
+    let _claude_config_guard = EnvVarGuard {
+        key: "CLAUDE_CONFIG_DIR",
+        old_value: old_claude_config_dir,
+    };
+    unsafe {
+        std::env::set_var("CLAUDE_CONFIG_DIR", home.join(".claude-env-home"));
+    }
+
+    write_skill_md(
+        &home
+            .join(".claude")
+            .join("skills")
+            .join("fallback-claude-skill"),
+        "Fallback Claude Skill",
+        "From default Claude dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "fallback-claude-skill"
+                && skill.found_in == vec!["claude".to_string()]),
+        "default Claude skills should be scanned when CLAUDE_CONFIG_DIR has no skills directory"
+    );
+}
+
+#[test]
+fn scan_agent_installed_falls_back_when_env_skills_path_is_not_directory() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_hermes_home = std::env::var_os("HERMES_HOME");
+    let _hermes_home_guard = EnvVarGuard {
+        key: "HERMES_HOME",
+        old_value: old_hermes_home,
+    };
+    let hermes_home = home.join(".hermes-env-home");
+    unsafe {
+        std::env::set_var("HERMES_HOME", &hermes_home);
+    }
+    std::fs::create_dir_all(&hermes_home).expect("create Hermes env home");
+    std::fs::write(hermes_home.join("skills"), "not a directory").expect("write skills file");
+
+    write_skill_md(
+        &home
+            .join(".hermes")
+            .join("skills")
+            .join("fallback-hermes-skill"),
+        "Fallback Hermes Skill",
+        "From default Hermes dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "fallback-hermes-skill"
+                && skill.found_in == vec!["hermes".to_string()]),
+        "default Hermes skills should be scanned when HERMES_HOME/skills is not a directory"
+    );
+}
+
+#[test]
+fn import_from_agent_prefers_hermes_home_env_and_enables_hermes() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_hermes_home = std::env::var_os("HERMES_HOME");
+    let _hermes_home_guard = EnvVarGuard {
+        key: "HERMES_HOME",
+        old_value: old_hermes_home,
+    };
+    let hermes_home = home.join(".hermes-env-home");
+    unsafe {
+        std::env::set_var("HERMES_HOME", &hermes_home);
+    }
+
+    write_skill_md(
+        &hermes_home.join("skills").join("env-hermes-skill"),
+        "Env Hermes Skill",
+        "From HERMES_HOME",
+    );
+    write_skill_md(
+        &home
+            .join(".hermes")
+            .join("skills")
+            .join("fallback-hermes-skill"),
+        "Fallback Hermes Skill",
+        "From default Hermes dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "env-hermes-skill"
+                && skill.found_in == vec!["hermes".to_string()]),
+        "HERMES_HOME skills should be offered first"
+    );
+    assert!(
+        scan_result
+            .iter()
+            .all(|skill| skill.directory != "fallback-hermes-skill"),
+        "default Hermes skills should not be scanned when HERMES_HOME skills exist"
+    );
+
+    let imported = SkillService::import_from_agent(vec!["env-hermes-skill".to_string()])
+        .expect("import Hermes env skill");
+    assert_eq!(imported.len(), 1);
+    assert!(imported[0].apps.hermes);
 }
 
 #[test]

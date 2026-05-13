@@ -46,13 +46,15 @@ cc-switch-tui 管理，不会自动启用到某个 app。
 
 1. `~/.agents/skills`
 2. 已支持 app 的 skill 目录：
-   - `~/.claude/skills`
-   - `~/.codex/skills`
+   - Claude：优先 `$CLAUDE_CONFIG_DIR/skills`，没有可扫描 skills 目录时回退到
+     cc-switch settings override 或 `~/.claude/skills`
+   - Codex：优先 `$CODEX_HOME/skills`，没有可扫描 skills 目录时回退到
+     cc-switch settings override 或 `~/.codex/skills`
+   - Hermes：优先 `$HERMES_HOME/skills`，没有可扫描 skills 目录时回退到
+     cc-switch settings override 或 `~/.hermes/skills`
    - `~/.gemini/skills`
    - `~/.config/opencode/skills`
    - `~/.openclaw/skills`
-   - `~/.hermes/skills`
-3. `$CODEX_HOME/skills`，当它和已配置的 Codex skill 目录不是同一路径时额外扫描
 
 如果两个来源路径相同，只保留一个来源，避免重复扫描。
 
@@ -68,7 +70,6 @@ fallback。
 - `agents`：来自 `~/.agents/skills`
 - `claude`、`codex`、`gemini`、`opencode`、`openclaw`、`hermes`：来自对应 app 的
   skill 目录
-- `codex-agent`：来自额外的 `$CODEX_HOME/skills`
 
 ## 过滤规则
 
@@ -78,6 +79,8 @@ fallback。
 
 - 非目录条目；
 - 目录名以 `.` 开头的隐藏目录；
+- 根目录下没有 `SKILL.md` 的目录，例如 Hermes 的分类目录；
+- Hermes `.bundled_manifest` 中声明的内置技能；
 - 目录名已经存在于 cc-switch-tui 管理记录中，并且不需要补齐任何 app 启用状态的 skill；
 - 读取目录失败的条目。
 
@@ -136,7 +139,7 @@ skills 目录。应用配置目录不要硬编码为 `~/.cc-switch-tui`；它受
 导入时还会把 lock file 中涉及的 GitHub repos 合并到 cc-switch-tui 的 skill repo
 列表中，便于后续发现、展示和维护。
 
-来自具体 app 目录或 `$CODEX_HOME/skills` 的 skill 不读取
+来自具体 app 目录或 app 环境变量技能目录的 skill 不读取
 `~/.agents/.skill-lock.json`。这类导入会使用本地记录：
 
 - `id = local:{directory}`
@@ -157,6 +160,8 @@ Agent 导入会区分通用 agent 来源和具体工具来源。
 - `~/.hermes/skills/foo` 会设置 `foo.apps.hermes = true`
 - `~/.claude/skills/foo` 会设置 `foo.apps.claude = true`
 - `$CODEX_HOME/skills/foo` 会设置 `foo.apps.codex = true`
+- `$CLAUDE_CONFIG_DIR/skills/foo` 会设置 `foo.apps.claude = true`
+- `$HERMES_HOME/skills/foo` 会设置 `foo.apps.hermes = true`
 
 后续仍可由用户显式调整：
 
