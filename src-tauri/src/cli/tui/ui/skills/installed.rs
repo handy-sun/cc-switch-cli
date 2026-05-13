@@ -31,12 +31,14 @@ pub(super) fn render_skills_installed(
             theme,
             &[
                 ("Enter", texts::tui_key_details()),
+                ("gg/G", texts::tui_key_edges()),
+                ("v", texts::tui_key_select()),
                 ("x", texts::tui_key_toggle()),
                 ("m", texts::tui_key_apps()),
+                ("d", texts::tui_key_uninstall()),
                 ("f", texts::tui_key_discover()),
                 ("i", texts::tui_skills_action_import_existing()),
                 ("s", texts::tui_skills_action_import_agent()),
-                ("d", texts::tui_key_uninstall()),
             ],
         );
     }
@@ -60,8 +62,15 @@ pub(super) fn render_skills_installed(
     ])
     .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD));
 
-    let rows = visible.iter().map(|skill| {
-        Row::new(vec![
+    let visual_range = app.skills_visual_range(visible.len());
+    let visual_style = if theme.no_color {
+        Style::default().add_modifier(Modifier::REVERSED)
+    } else {
+        Style::default().bg(theme.surface)
+    };
+
+    let rows = visible.iter().enumerate().map(|(idx, skill)| {
+        let row = Row::new(vec![
             Cell::from(skill_display_name(&skill.name, &skill.directory).to_string()),
             centered_cell(skill_marker(skill.apps.claude)),
             centered_cell(skill_marker(skill.apps.codex)),
@@ -69,7 +78,13 @@ pub(super) fn render_skills_installed(
             centered_cell(skill_marker(skill.apps.opencode)),
             centered_cell(skill_marker(skill.apps.openclaw)),
             centered_cell(skill_marker(skill.apps.hermes)),
-        ])
+        ]);
+
+        if visual_range.is_some_and(|(start, end)| (start..=end).contains(&idx)) {
+            row.style(visual_style)
+        } else {
+            row
+        }
     });
 
     let table = Table::new(

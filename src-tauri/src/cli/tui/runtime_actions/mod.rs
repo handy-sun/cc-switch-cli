@@ -180,9 +180,19 @@ pub(crate) fn handle_action(
             Ok(())
         }
         Action::SkillsToggle { directory, enabled } => skills::toggle(&mut ctx, directory, enabled),
+        Action::SkillsToggleMany {
+            directories,
+            enabled,
+        } => skills::toggle_many(&mut ctx, directories, enabled),
         Action::SkillsSetApps { directory, apps } => skills::set_apps(&mut ctx, directory, apps),
+        Action::SkillsSetAppsMany { directories, apps } => {
+            skills::set_apps_many(&mut ctx, directories, apps)
+        }
         Action::SkillsInstall { spec } => skills::install(&mut ctx, spec),
         Action::SkillsUninstall { directory } => skills::uninstall(&mut ctx, directory),
+        Action::SkillsUninstallMany { directories } => {
+            skills::uninstall_many(&mut ctx, directories)
+        }
         Action::SkillsSync { app: scope } => skills::sync(&mut ctx, scope),
         Action::SkillsSetSyncMethod { method } => skills::set_sync_method(&mut ctx, method),
         Action::SkillsDiscover { query } => skills::discover(&mut ctx, query),

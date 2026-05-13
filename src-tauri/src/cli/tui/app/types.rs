@@ -61,6 +61,7 @@ pub enum ConfirmAction {
     McpDelete { id: String },
     PromptDelete { id: String },
     SkillsUninstall { directory: String },
+    SkillsUninstallMany { directories: Vec<String> },
     SkillsRepoRemove { owner: String, name: String },
     ConfigImport { path: String },
     ConfigRestoreBackup { id: String },
@@ -235,6 +236,7 @@ pub enum Overlay {
     },
     SkillsAppsPicker {
         directory: String,
+        directories: Vec<String>,
         name: String,
         selected: usize,
         apps: crate::app_config::SkillApps,

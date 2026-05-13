@@ -926,6 +926,14 @@ pub fn tui_key_select() -> &'static str {
     }
 }
 
+pub fn tui_key_edges() -> &'static str {
+    if is_chinese() {
+        "首尾"
+    } else {
+        "top/end"
+    }
+}
+
 pub fn tui_key_fetch_model() -> &'static str {
     if is_chinese() {
         "获取模型"

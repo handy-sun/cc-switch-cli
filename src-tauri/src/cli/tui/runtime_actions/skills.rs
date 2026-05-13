@@ -25,6 +25,22 @@ pub(super) fn toggle(
     Ok(())
 }
 
+pub(super) fn toggle_many(
+    ctx: &mut RuntimeActionContext<'_>,
+    directories: Vec<String>,
+    enabled: bool,
+) -> Result<(), AppError> {
+    for directory in &directories {
+        SkillService::toggle_app(directory, &ctx.app.app_type, enabled)?;
+    }
+    *ctx.data = super::super::data::UiData::load(&ctx.app.app_type)?;
+    ctx.app.push_toast(
+        texts::tui_toast_skills_toggled(directories.len(), enabled),
+        ToastKind::Success,
+    );
+    Ok(())
+}
+
 pub(super) fn set_apps(
     ctx: &mut RuntimeActionContext<'_>,
     directory: String,
@@ -51,6 +67,42 @@ pub(super) fn set_apps(
         }
         changed = true;
         SkillService::toggle_app(&directory, &app_type, next_enabled)?;
+    }
+
+    *ctx.data = super::super::data::UiData::load(&ctx.app.app_type)?;
+    if changed {
+        ctx.app
+            .push_toast(texts::tui_toast_skill_apps_updated(), ToastKind::Success);
+    }
+    Ok(())
+}
+
+pub(super) fn set_apps_many(
+    ctx: &mut RuntimeActionContext<'_>,
+    directories: Vec<String>,
+    apps: SkillApps,
+) -> Result<(), AppError> {
+    let mut changed = false;
+    for directory in &directories {
+        let Some(before) = ctx
+            .data
+            .skills
+            .installed
+            .iter()
+            .find(|skill| skill.directory == *directory)
+            .map(|skill| skill.apps.clone())
+        else {
+            continue;
+        };
+
+        for app_type in AppType::all() {
+            let next_enabled = apps.is_enabled_for(&app_type);
+            if before.is_enabled_for(&app_type) == next_enabled {
+                continue;
+            }
+            changed = true;
+            SkillService::toggle_app(directory, &app_type, next_enabled)?;
+        }
     }
 
     *ctx.data = super::super::data::UiData::load(&ctx.app.app_type)?;
@@ -97,6 +149,21 @@ pub(super) fn uninstall(
         }
         ctx.app.route = Route::Skills;
     }
+    Ok(())
+}
+
+pub(super) fn uninstall_many(
+    ctx: &mut RuntimeActionContext<'_>,
+    directories: Vec<String>,
+) -> Result<(), AppError> {
+    for directory in &directories {
+        SkillService::uninstall(directory)?;
+    }
+    *ctx.data = super::super::data::UiData::load(&ctx.app.app_type)?;
+    ctx.app.push_toast(
+        texts::tui_toast_skills_uninstalled(directories.len()),
+        ToastKind::Success,
+    );
     Ok(())
 }
 

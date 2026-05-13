@@ -13,8 +13,16 @@ pub enum Action {
         directory: String,
         enabled: bool,
     },
+    SkillsToggleMany {
+        directories: Vec<String>,
+        enabled: bool,
+    },
     SkillsSetApps {
         directory: String,
+        apps: crate::app_config::SkillApps,
+    },
+    SkillsSetAppsMany {
+        directories: Vec<String>,
         apps: crate::app_config::SkillApps,
     },
     SkillsInstall {
@@ -22,6 +30,9 @@ pub enum Action {
     },
     SkillsUninstall {
         directory: String,
+    },
+    SkillsUninstallMany {
+        directories: Vec<String>,
     },
     SkillsSync {
         app: Option<AppType>,
@@ -477,6 +488,8 @@ pub struct App {
     pub mcp_idx: usize,
     pub prompt_idx: usize,
     pub skills_idx: usize,
+    pub skills_visual_anchor: Option<usize>,
+    pub skills_pending_g: bool,
     pub skills_discover_idx: usize,
     pub skills_repo_idx: usize,
     pub skills_unmanaged_idx: usize,

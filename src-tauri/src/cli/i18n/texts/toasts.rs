@@ -430,11 +430,33 @@ pub fn tui_toast_skill_toggled(directory: &str, enabled: bool) -> String {
     }
 }
 
+pub fn tui_toast_skills_toggled(count: usize, enabled: bool) -> String {
+    if is_chinese() {
+        format!(
+            "已{} {count} 个 Skill",
+            if enabled { "启用" } else { "禁用" }
+        )
+    } else {
+        format!(
+            "{} {count} Skills",
+            if enabled { "Enabled" } else { "Disabled" }
+        )
+    }
+}
+
 pub fn tui_toast_skill_uninstalled(directory: &str) -> String {
     if is_chinese() {
         format!("已卸载: {directory}")
     } else {
         format!("Uninstalled: {directory}")
+    }
+}
+
+pub fn tui_toast_skills_uninstalled(count: usize) -> String {
+    if is_chinese() {
+        format!("已卸载 {count} 个 Skill")
+    } else {
+        format!("Uninstalled {count} Skills")
     }
 }
 

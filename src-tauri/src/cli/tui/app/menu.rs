@@ -51,6 +51,8 @@ impl App {
             mcp_idx: 0,
             prompt_idx: 0,
             skills_idx: 0,
+            skills_visual_anchor: None,
+            skills_pending_g: false,
             skills_discover_idx: 0,
             skills_repo_idx: 0,
             skills_unmanaged_idx: 0,
@@ -528,8 +530,12 @@ impl App {
         let skills_len = visible_skills_installed(&self.filter, data).len();
         if skills_len == 0 {
             self.skills_idx = 0;
+            self.skills_visual_anchor = None;
         } else {
             self.skills_idx = self.skills_idx.min(skills_len - 1);
+            if let Some(anchor) = &mut self.skills_visual_anchor {
+                *anchor = (*anchor).min(skills_len - 1);
+            }
         }
 
         let discover_len =

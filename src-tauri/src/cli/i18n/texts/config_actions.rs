@@ -123,6 +123,14 @@ pub fn tui_confirm_uninstall_skill_message(name: &str, directory: &str) -> Strin
     }
 }
 
+pub fn tui_confirm_uninstall_skills_message(count: usize) -> String {
+    if is_chinese() {
+        format!("确认卸载选中的 {count} 个 Skill？")
+    } else {
+        format!("Uninstall the {count} selected Skills?")
+    }
+}
+
 pub fn tui_skills_discover_title() -> &'static str {
     if is_chinese() {
         "发现 Skills"
@@ -784,6 +792,14 @@ pub fn tui_skill_apps_title(name: &str) -> String {
         format!("选择 Skill 应用: {}", name)
     } else {
         format!("Select Skill Apps: {}", name)
+    }
+}
+
+pub fn tui_skills_batch_selection_name(count: usize) -> String {
+    if is_chinese() {
+        format!("已选择 {count} 个 Skill")
+    } else {
+        format!("{count} selected Skills")
     }
 }
 

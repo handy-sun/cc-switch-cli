@@ -103,6 +103,30 @@ mod tests {
         UiData::default()
     }
 
+    fn installed_skill(directory: &str, name: &str) -> crate::services::skill::InstalledSkill {
+        crate::services::skill::InstalledSkill {
+            id: format!("local:{directory}"),
+            name: name.to_string(),
+            description: None,
+            directory: directory.to_string(),
+            repo_owner: None,
+            repo_name: None,
+            repo_branch: None,
+            readme_url: None,
+            apps: crate::app_config::SkillApps::default(),
+            installed_at: 0,
+        }
+    }
+
+    fn skills_data(directories: &[&str]) -> UiData {
+        let mut data = UiData::default();
+        data.skills.installed = directories
+            .iter()
+            .map(|directory| installed_skill(directory, directory))
+            .collect();
+        data
+    }
+
     fn claude_provider_row(id: &str) -> ProviderRow {
         ProviderRow {
             id: id.to_string(),
@@ -259,6 +283,98 @@ mod tests {
     }
 
     #[test]
+    fn skills_gg_and_g_jump_to_edges() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Skills;
+        app.focus = Focus::Content;
+        app.skills_idx = 2;
+        let data = skills_data(&["alpha", "beta", "gamma"]);
+
+        assert!(matches!(
+            app.on_key(key(KeyCode::Char('g')), &data),
+            Action::None
+        ));
+        assert_eq!(app.skills_idx, 2);
+        assert!(matches!(
+            app.on_key(key(KeyCode::Char('g')), &data),
+            Action::None
+        ));
+        assert_eq!(app.skills_idx, 0);
+
+        assert!(matches!(
+            app.on_key(key(KeyCode::Char('G')), &data),
+            Action::None
+        ));
+        assert_eq!(app.skills_idx, 2);
+    }
+
+    #[test]
+    fn skills_visual_mode_batch_toggles_selected_range() {
+        let mut app = App::new(Some(AppType::Claude));
+        app.route = Route::Skills;
+        app.focus = Focus::Content;
+        app.skills_idx = 1;
+        let data = skills_data(&["alpha", "beta", "gamma", "delta"]);
+
+        assert!(matches!(
+            app.on_key(key(KeyCode::Char('v')), &data),
+            Action::None
+        ));
+        assert!(matches!(
+            app.on_key(key(KeyCode::Down), &data),
+            Action::None
+        ));
+
+        let action = app.on_key(key(KeyCode::Char('x')), &data);
+        assert!(matches!(
+            action,
+            Action::SkillsToggleMany {
+                directories,
+                enabled: true
+            } if directories == vec!["beta".to_string(), "gamma".to_string()]
+        ));
+    }
+
+    #[test]
+    fn skills_visual_mode_batch_apps_picker_and_delete() {
+        let mut app = App::new(Some(AppType::Codex));
+        app.route = Route::Skills;
+        app.focus = Focus::Content;
+        let data = skills_data(&["alpha", "beta", "gamma"]);
+
+        assert!(matches!(
+            app.on_key(key(KeyCode::Char('v')), &data),
+            Action::None
+        ));
+        assert!(matches!(
+            app.on_key(key(KeyCode::Down), &data),
+            Action::None
+        ));
+
+        let action = app.on_key(key(KeyCode::Char('m')), &data);
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            &app.overlay,
+            Overlay::SkillsAppsPicker {
+                directories,
+                selected: 1,
+                ..
+            } if directories == &vec!["alpha".to_string(), "beta".to_string()]
+        ));
+
+        app.overlay = Overlay::None;
+        let action = app.on_key(key(KeyCode::Char('d')), &data);
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            &app.overlay,
+            Overlay::Confirm(ConfirmOverlay {
+                action: ConfirmAction::SkillsUninstallMany { directories },
+                ..
+            }) if directories == &vec!["alpha".to_string(), "beta".to_string()]
+        ));
+    }
+
+    #[test]
     fn skills_m_opens_apps_picker_overlay() {
         let mut app = App::new(Some(AppType::Codex));
         app.route = Route::Skills;
@@ -286,10 +402,11 @@ mod tests {
             &app.overlay,
             Overlay::SkillsAppsPicker {
                 directory,
+                directories,
                 name,
                 selected: 1,
                 ..
-            } if directory == "hello-skill" && name == "Hello Skill"
+            } if directory == "hello-skill" && directories == &vec!["hello-skill".to_string()] && name == "Hello Skill"
         ));
     }
 

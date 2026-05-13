@@ -647,6 +647,7 @@ impl App {
     fn handle_skills_apps_picker_key(&mut self, key: KeyEvent, data: &UiData) -> Option<Action> {
         let Overlay::SkillsAppsPicker {
             directory,
+            directories,
             selected,
             apps,
             ..
@@ -676,18 +677,35 @@ impl App {
             }
             KeyCode::Enter => {
                 let directory = directory.clone();
+                let directories = directories.clone();
                 let next = apps.clone();
-                let unchanged = data
-                    .skills
-                    .installed
-                    .iter()
-                    .find(|skill| skill.directory == directory)
-                    .map(|skill| skill.apps == next)
-                    .unwrap_or(false);
+                let unchanged = if directories.len() > 1 {
+                    directories.iter().all(|directory| {
+                        data.skills
+                            .installed
+                            .iter()
+                            .find(|skill| skill.directory == *directory)
+                            .map(|skill| skill.apps == next)
+                            .unwrap_or(false)
+                    })
+                } else {
+                    data.skills
+                        .installed
+                        .iter()
+                        .find(|skill| skill.directory == directory)
+                        .map(|skill| skill.apps == next)
+                        .unwrap_or(false)
+                };
 
                 self.overlay = Overlay::None;
+                self.skills_visual_anchor = None;
                 if unchanged {
                     Action::None
+                } else if directories.len() > 1 {
+                    Action::SkillsSetAppsMany {
+                        directories,
+                        apps: next,
+                    }
                 } else {
                     Action::SkillsSetApps {
                         directory,

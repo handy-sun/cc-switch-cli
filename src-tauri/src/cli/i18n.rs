@@ -2690,6 +2690,14 @@ pub mod texts {
         }
     }
 
+    pub fn tui_key_edges() -> &'static str {
+        if is_chinese() {
+            "首尾"
+        } else {
+            "top/end"
+        }
+    }
+
     pub fn tui_key_fetch_model() -> &'static str {
         if is_chinese() {
             "获取模型"
@@ -3025,6 +3033,14 @@ pub mod texts {
             format!("确认卸载 '{name}'（{directory}）？")
         } else {
             format!("Uninstall '{name}' ({directory})?")
+        }
+    }
+
+    pub fn tui_confirm_uninstall_skills_message(count: usize) -> String {
+        if is_chinese() {
+            format!("确认卸载选中的 {count} 个 Skill？")
+        } else {
+            format!("Uninstall the {count} selected Skills?")
         }
     }
 
@@ -4574,6 +4590,14 @@ pub mod texts {
         }
     }
 
+    pub fn tui_skills_batch_selection_name(count: usize) -> String {
+        if is_chinese() {
+            format!("已选择 {count} 个 Skill")
+        } else {
+            format!("{count} selected Skills")
+        }
+    }
+
     pub fn tui_toast_provider_no_api_url() -> &'static str {
         if is_chinese() {
             "该供应商未配置 API URL。"
@@ -5221,11 +5245,33 @@ pub mod texts {
         }
     }
 
+    pub fn tui_toast_skills_toggled(count: usize, enabled: bool) -> String {
+        if is_chinese() {
+            format!(
+                "已{} {count} 个 Skill",
+                if enabled { "启用" } else { "禁用" }
+            )
+        } else {
+            format!(
+                "{} {count} Skills",
+                if enabled { "Enabled" } else { "Disabled" }
+            )
+        }
+    }
+
     pub fn tui_toast_skill_uninstalled(directory: &str) -> String {
         if is_chinese() {
             format!("已卸载: {directory}")
         } else {
             format!("Uninstalled: {directory}")
+        }
+    }
+
+    pub fn tui_toast_skills_uninstalled(count: usize) -> String {
+        if is_chinese() {
+            format!("已卸载 {count} 个 Skill")
+        } else {
+            format!("Uninstalled {count} Skills")
         }
     }
 

@@ -35,6 +35,11 @@ impl App {
                     ConfirmAction::SkillsUninstall { directory } => Action::SkillsUninstall {
                         directory: directory.clone(),
                     },
+                    ConfirmAction::SkillsUninstallMany { directories } => {
+                        Action::SkillsUninstallMany {
+                            directories: directories.clone(),
+                        }
+                    }
                     ConfirmAction::SkillsRepoRemove { owner, name } => Action::SkillsRepoRemove {
                         owner: owner.clone(),
                         name: name.clone(),
@@ -73,6 +78,13 @@ impl App {
                     ConfirmAction::WebDavMigrateV1ToV2 => Action::ConfigWebDavMigrateV1ToV2,
                 };
                 self.close_overlay();
+                if matches!(
+                    confirm.action,
+                    ConfirmAction::SkillsUninstall { .. }
+                        | ConfirmAction::SkillsUninstallMany { .. }
+                ) {
+                    self.skills_visual_anchor = None;
+                }
                 action
             }
             KeyCode::Char('n') | KeyCode::Char('N') => {
