@@ -26,7 +26,7 @@ use crate::{
             ConfigSnapshot, McpSnapshot, OpenClawWorkspaceSnapshot, PromptsSnapshot, ProviderRow,
             ProvidersSnapshot, ProxySnapshot, SkillsSnapshot, UiData,
         },
-        form::{FormFocus, ProviderAddField},
+        form::{FormFocus, ProviderAddField, TextInput},
         route::{NavItem, Route},
         theme::theme_for,
     },
@@ -1001,9 +1001,9 @@ fn header_centers_tabs_when_room_allows() {
         .find(AppType::Claude.as_str())
         .expect("claude tab should render");
     let last_label_end = lane
-        .rfind(AppType::OpenClaw.as_str())
-        .map(|idx| idx + AppType::OpenClaw.as_str().len())
-        .expect("openclaw tab should render");
+        .rfind(AppType::Hermes.as_str())
+        .map(|idx| idx + AppType::Hermes.as_str().len())
+        .expect("hermes tab should render");
     let left_gap = first_label;
     let right_gap = lane.len().saturating_sub(last_label_end);
 
@@ -1207,6 +1207,30 @@ fn providers_pane_has_border_and_selected_row_is_accent() {
         content.y.saturating_add(1 + 1 + 1),
     )];
     assert_eq!(selected_row_cell.bg, theme.accent);
+}
+
+#[test]
+fn providers_empty_state_matches_gui_copy_in_chinese() {
+    let _lock = lock_env();
+    let _lang = use_test_language(Language::Chinese);
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Claude));
+    app.route = Route::Providers;
+    app.focus = Focus::Content;
+
+    let all = all_text(&render(&app, &UiData::default()));
+    let compact = all.replace(' ', "");
+
+    assert!(compact.contains("还没有添加任何供应商"), "{all}");
+    assert!(
+        compact.contains(
+            "如果你已有配置，请点击\"导入当前配置\"，所有数据将安全保存在default供应商中"
+        ),
+        "{all}"
+    );
+    assert!(compact.contains("Enter导入当前配置"), "{all}");
+    assert!(compact.contains("a添加供应商"), "{all}");
 }
 
 #[test]
@@ -2437,6 +2461,34 @@ fn skills_import_overlay_uses_friendly_copy() {
 }
 
 #[test]
+fn skills_agent_import_overlay_uses_agent_copy() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Claude));
+    app.route = Route::Skills;
+    app.focus = Focus::Content;
+    app.overlay = Overlay::SkillsAgentImportPicker {
+        skills: vec![UnmanagedSkill {
+            directory: "agent-skill".to_string(),
+            name: "Agent Skill".to_string(),
+            description: Some("A local agent skill".to_string()),
+            found_in: vec!["agents".to_string()],
+        }],
+        selected_idx: 0,
+        selected: std::iter::once("agent-skill".to_string()).collect(),
+    };
+
+    let data = minimal_data(&app.app_type);
+    let buf = render(&app, &data);
+    let all = all_text(&buf);
+
+    assert!(all.contains(texts::tui_skills_agent_import_title()));
+    assert!(all.contains(texts::tui_skills_agent_import_description()));
+    assert!(all.contains("Agent Skill"));
+}
+
+#[test]
 fn mcp_page_renders_opencode_column() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
@@ -2628,7 +2680,7 @@ fn text_input_overlay_renders_inner_input_box() {
     app.overlay = Overlay::TextInput(TextInputState {
         title: "Demo".to_string(),
         prompt: "Enter value".to_string(),
-        buffer: "hello".to_string(),
+        input: TextInput::new("hello".to_string()),
         submit: TextSubmit::ConfigBackupName,
         secret: false,
     });
@@ -4893,7 +4945,7 @@ fn openclaw_config_item_and_route_titles_follow_i18n_texts() {
     let mut config_app = App::new(Some(AppType::OpenClaw));
     config_app.route = Route::Config;
     config_app.focus = Focus::Content;
-    config_app.filter.buffer = "openclaw".to_string();
+    config_app.filter.input.set("openclaw".to_string());
     let config_labels = super::config_items_filtered(&config_app)
         .into_iter()
         .map(|item| super::config_item_label(&item))
@@ -6861,7 +6913,7 @@ fn workspace_daily_memory_route_render_shows_search_results_when_query_is_active
     let mut app = App::new(Some(AppType::OpenClaw));
     app.route = Route::ConfigOpenClawDailyMemory;
     app.focus = Focus::Content;
-    app.filter.buffer = "focus".to_string();
+    app.filter.input.set("focus".to_string());
     app.openclaw_daily_memory_search_query = "focus".to_string();
     app.openclaw_daily_memory_search_results =
         vec![crate::commands::workspace::DailyMemorySearchResult {
@@ -6899,7 +6951,7 @@ fn provider_form_model_field_enter_hint_uses_fetch_model() {
 }
 
 #[test]
-fn provider_detail_key_bar_shows_stream_check_hint() {
+fn provider_detail_key_bar_shows_test_hint() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -6919,11 +6971,12 @@ fn provider_detail_key_bar_shows_stream_check_hint() {
         all.push('\n');
     }
 
-    assert!(all.contains("stream check"));
+    assert!(all.contains("t test"));
+    assert!(!all.contains("c stream check"));
 }
 
 #[test]
-fn openclaw_provider_list_key_bar_hides_stream_check_hint() {
+fn openclaw_provider_list_key_bar_shows_test_hint_only() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -6941,12 +6994,54 @@ fn openclaw_provider_list_key_bar_hides_stream_check_hint() {
         all.push('\n');
     }
 
-    assert!(all.contains("speedtest"));
+    assert!(all.contains("t test"));
+    assert!(!all.contains("speedtest"));
     assert!(!all.contains("stream check"));
 }
 
 #[test]
-fn openclaw_provider_list_key_bar_uses_additive_mode_actions() {
+fn provider_test_menu_renders_supported_test_actions() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Claude));
+    app.route = Route::Providers;
+    app.focus = Focus::Content;
+    app.overlay = Overlay::ProviderTestMenu {
+        provider_id: "p1".to_string(),
+        selected: 0,
+    };
+    let data = minimal_data(&app.app_type);
+
+    let all = all_text(&render(&app, &data));
+
+    assert!(all.contains("Test"), "{all}");
+    assert!(all.contains("speedtest"), "{all}");
+    assert!(all.contains("stream check"), "{all}");
+}
+
+#[test]
+fn openclaw_provider_test_menu_hides_stream_check() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::OpenClaw));
+    app.route = Route::Providers;
+    app.focus = Focus::Content;
+    app.overlay = Overlay::ProviderTestMenu {
+        provider_id: "p1".to_string(),
+        selected: 0,
+    };
+    let data = minimal_data(&app.app_type);
+
+    let all = all_text(&render(&app, &data));
+
+    assert!(all.contains("speedtest"), "{all}");
+    assert!(!all.contains("stream check"), "{all}");
+}
+
+#[test]
+fn openclaw_provider_list_key_bar_uses_common_provider_actions() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -6964,14 +7059,14 @@ fn openclaw_provider_list_key_bar_uses_additive_mode_actions() {
         all.push('\n');
     }
 
-    assert!(all.contains("s add/remove"));
-    assert!(all.contains("Space set default"));
-    assert!(!all.contains("x set default"));
-    assert!(!all.contains("s switch"));
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("t test"), "{all}");
+    assert!(all.contains("x set default"), "{all}");
+    assert!(!all.contains("s add/remove"), "{all}");
 }
 
 #[test]
-fn failover_provider_list_key_bar_hides_move_hint_and_gates_switch_hint() {
+fn failover_provider_list_key_bar_hides_move_hint_and_keeps_common_switch_hint() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -6988,7 +7083,7 @@ fn failover_provider_list_key_bar_hides_move_hint_and_gates_switch_hint() {
     data.proxy.auto_failover_enabled = true;
     let enabled_text = all_text(&render_with_size(&app, &data, 180, 40));
     let enabled_keys = line_with(&enabled_text, "manage failover");
-    assert!(!enabled_keys.contains("Space"), "{enabled_keys}");
+    assert!(enabled_keys.contains("Space"), "{enabled_keys}");
     assert!(!enabled_keys.contains("</>"), "{enabled_keys}");
 }
 
@@ -7110,8 +7205,10 @@ fn opencode_provider_list_key_bar_uses_config_membership_actions() {
 
     let all = all_text(&render(&app, &data));
 
-    assert!(all.contains("s add/remove"), "{all}");
-    assert!(all.contains("c stream check"), "{all}");
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("t test"), "{all}");
+    assert!(!all.contains("s add/remove"), "{all}");
+    assert!(!all.contains("c stream check"), "{all}");
     assert!(!all.contains("s switch"), "{all}");
     assert!(!all.contains("x set default"), "{all}");
     assert!(!all.contains("Space set default"), "{all}");
@@ -7140,7 +7237,7 @@ fn opencode_provider_list_marks_rows_in_config_without_current_marker() {
 }
 
 #[test]
-fn openclaw_provider_detail_key_bar_hides_stream_check_hint() {
+fn openclaw_provider_detail_key_bar_shows_test_hint_only() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -7160,12 +7257,13 @@ fn openclaw_provider_detail_key_bar_hides_stream_check_hint() {
         all.push('\n');
     }
 
-    assert!(all.contains("speedtest"));
+    assert!(all.contains("t test"));
+    assert!(!all.contains("speedtest"));
     assert!(!all.contains("stream check"));
 }
 
 #[test]
-fn openclaw_provider_detail_key_bar_uses_additive_mode_actions() {
+fn openclaw_provider_detail_key_bar_uses_common_provider_actions() {
     let _lock = lock_env();
     let _no_color = EnvGuard::remove("NO_COLOR");
 
@@ -7185,10 +7283,10 @@ fn openclaw_provider_detail_key_bar_uses_additive_mode_actions() {
         all.push('\n');
     }
 
-    assert!(all.contains("s add/remove"));
-    assert!(all.contains("Space set default"));
-    assert!(!all.contains("x set default"));
-    assert!(!all.contains("s switch"));
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("t test"), "{all}");
+    assert!(all.contains("x set default"), "{all}");
+    assert!(!all.contains("s add/remove"), "{all}");
 }
 
 #[test]
@@ -7205,8 +7303,10 @@ fn opencode_provider_detail_key_bar_uses_config_membership_actions() {
 
     let all = all_text(&render(&app, &data));
 
-    assert!(all.contains("s add/remove"), "{all}");
-    assert!(all.contains("c stream check"), "{all}");
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("t test"), "{all}");
+    assert!(!all.contains("s add/remove"), "{all}");
+    assert!(!all.contains("c stream check"), "{all}");
     assert!(
         all.contains(texts::tui_label_provider_config_status()),
         "{all}"
@@ -7229,8 +7329,9 @@ fn openclaw_provider_list_key_bar_shows_edit_for_tracked_provider() {
     let all = all_text(&buf);
 
     assert!(all.contains("e edit"), "{all}");
-    assert!(all.contains("Space set default"), "{all}");
-    assert!(!all.contains("x set default"), "{all}");
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("x set default"), "{all}");
+    assert!(!all.contains("Space set default"), "{all}");
 }
 
 #[test]
@@ -7248,8 +7349,9 @@ fn openclaw_provider_detail_key_bar_shows_edit_for_tracked_provider() {
     let all = all_text(&buf);
 
     assert!(all.contains("e edit"), "{all}");
-    assert!(all.contains("Space set default"), "{all}");
-    assert!(!all.contains("x set default"), "{all}");
+    assert!(all.contains("Space switch"), "{all}");
+    assert!(all.contains("x set default"), "{all}");
+    assert!(!all.contains("Space set default"), "{all}");
 }
 
 #[test]
@@ -7344,7 +7446,7 @@ fn openclaw_tui_provider_detail_uses_saved_name_and_keeps_model_separate() {
 #[test]
 fn openclaw_tui_provider_search_uses_saved_name_not_model_name() {
     let mut app = App::new(Some(AppType::OpenClaw));
-    app.filter.buffer = "live model".to_string();
+    app.filter.input.set("live model".to_string());
 
     let mut data = minimal_data(&app.app_type);
     data.providers.rows[0].provider = Provider::with_id(
@@ -7361,7 +7463,7 @@ fn openclaw_tui_provider_search_uses_saved_name_not_model_name() {
 
     assert!(super::provider_rows_filtered(&app, &data).is_empty());
 
-    app.filter.buffer = "saved snapshot".to_string();
+    app.filter.input.set("saved snapshot".to_string());
     assert_eq!(super::provider_rows_filtered(&app, &data).len(), 1);
 }
 
@@ -7557,9 +7659,10 @@ fn openclaw_provider_list_key_bar_localizes_actions_in_chinese() {
     let all = all_text(&render(&app, &minimal_data(&app.app_type)));
     let compact = all.replace(' ', "");
 
-    assert!(compact.contains("s添加/移除"), "{all}");
-    assert!(compact.contains("Space设为默认"), "{all}");
-    assert!(!compact.contains("x设为默认"), "{all}");
+    assert!(compact.contains("Space切换"), "{all}");
+    assert!(compact.contains("t测试"), "{all}");
+    assert!(compact.contains("x设为默认"), "{all}");
+    assert!(!compact.contains("s添加/移除"), "{all}");
     assert!(!all.contains("add/remove"), "{all}");
     assert!(!all.contains("set default"), "{all}");
 }
@@ -7579,9 +7682,10 @@ fn openclaw_provider_detail_key_bar_localizes_actions_in_chinese() {
     let all = all_text(&render(&app, &minimal_data(&app.app_type)));
     let compact = all.replace(' ', "");
 
-    assert!(compact.contains("s添加/移除"), "{all}");
-    assert!(compact.contains("Space设为默认"), "{all}");
-    assert!(!compact.contains("x设为默认"), "{all}");
+    assert!(compact.contains("Space切换"), "{all}");
+    assert!(compact.contains("t测试"), "{all}");
+    assert!(compact.contains("x设为默认"), "{all}");
+    assert!(!compact.contains("s添加/移除"), "{all}");
     assert!(!all.contains("add/remove"), "{all}");
     assert!(!all.contains("set default"), "{all}");
 }
@@ -7607,7 +7711,7 @@ fn provider_detail_keys_line_does_not_include_q_back() {
         all.push('\n');
     }
 
-    assert!(all.contains("speedtest"));
+    assert!(all.contains("t test"));
     assert!(
         !all.contains("q=back"),
         "provider detail inline keys should not include q=back"

@@ -78,6 +78,7 @@ impl App {
                 Action::None
             }
             KeyCode::Char('i') => Action::SkillsOpenImport,
+            KeyCode::Char('s') => Action::SkillsOpenAgentImport,
             KeyCode::Char('f') => self.push_route_and_switch(Route::SkillsDiscover),
             _ => Action::None,
         }
@@ -101,7 +102,7 @@ impl App {
                 self.overlay = Overlay::TextInput(TextInputState {
                     title: texts::tui_skills_discover_title().to_string(),
                     prompt: texts::tui_skills_discover_prompt().to_string(),
-                    buffer: self.skills_discover_query.clone(),
+                    input: TextInput::new(self.skills_discover_query.clone()),
                     submit: TextSubmit::SkillsDiscoverQuery,
                     secret: false,
                 });
@@ -142,7 +143,7 @@ impl App {
                 self.overlay = Overlay::TextInput(TextInputState {
                     title: texts::tui_skills_repos_add_title().to_string(),
                     prompt: texts::tui_skills_repos_add_prompt().to_string(),
-                    buffer: String::new(),
+                    input: TextInput::new(""),
                     submit: TextSubmit::SkillsRepoAdd,
                     secret: false,
                 });

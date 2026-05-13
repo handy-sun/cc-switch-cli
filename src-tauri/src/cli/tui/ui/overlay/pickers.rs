@@ -1,5 +1,6 @@
 use super::super::theme;
 use super::super::*;
+use crate::cli::tui::text_edit::TextInput;
 
 pub(super) fn render_claude_model_picker_overlay(
     frame: &mut Frame<'_>,
@@ -230,11 +231,67 @@ pub(super) fn render_claude_api_format_picker_overlay(
     frame.render_stateful_widget(list, body_area, &mut state);
 }
 
+pub(super) fn render_provider_test_menu_overlay(
+    frame: &mut Frame<'_>,
+    app: &App,
+    _data: &UiData,
+    content_area: Rect,
+    theme: &theme::Theme,
+    _provider_id: &str,
+    selected: usize,
+) {
+    let area = centered_rect_fixed(50, 8, content_area);
+    frame.render_widget(Clear, area);
+
+    let outer = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Plain)
+        .border_style(overlay_border_style(theme, false))
+        .title(texts::tui_provider_test_menu_title());
+    frame.render_widget(outer.clone(), area);
+    let inner = outer.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(inner);
+
+    render_key_bar_center(
+        frame,
+        chunks[0],
+        theme,
+        &[
+            ("↑↓", texts::tui_key_select()),
+            ("Enter", texts::tui_key_apply()),
+            ("Esc", texts::tui_key_close()),
+        ],
+    );
+
+    let body_area = inset_top(chunks[1], 1);
+    let items = app::provider_test_menu_items(&app.app_type)
+        .into_iter()
+        .map(|item| ListItem::new(Line::raw(app::provider_test_menu_item_label(item))));
+
+    let list = List::new(items)
+        .highlight_style(selection_style(theme))
+        .highlight_symbol(highlight_symbol(theme));
+
+    let mut state = ListState::default();
+    state.select(Some(
+        selected.min(
+            app::provider_test_menu_items(&app.app_type)
+                .len()
+                .saturating_sub(1),
+        ),
+    ));
+    frame.render_stateful_widget(list, body_area, &mut state);
+}
+
 pub(super) fn render_model_fetch_picker_overlay(
     frame: &mut Frame<'_>,
     content_area: Rect,
     theme: &theme::Theme,
-    input: &str,
+    input: &TextInput,
     query: &str,
     fetching: bool,
     models: &[String],
@@ -270,8 +327,8 @@ pub(super) fn render_model_fetch_picker_overlay(
     let input_inner = input_block.inner(chunks[0]);
 
     let (visible, cursor_x) =
-        visible_text_window(input, input.chars().count(), input_inner.width as usize);
-    let (input_text, input_style) = if input.is_empty() {
+        visible_text_window(&input.value, input.cursor, input_inner.width as usize);
+    let (input_text, input_style) = if input.value.is_empty() {
         (
             texts::tui_model_fetch_search_placeholder().to_string(),
             Style::default().fg(theme.dim),
@@ -744,6 +801,48 @@ pub(super) fn render_skills_import_picker_overlay(
     selected_idx: usize,
     selected: &std::collections::HashSet<String>,
 ) {
+    render_skill_import_picker_overlay(
+        frame,
+        content_area,
+        theme,
+        texts::tui_skills_import_title(),
+        texts::tui_skills_import_description(),
+        skills,
+        selected_idx,
+        selected,
+    );
+}
+
+pub(super) fn render_skills_agent_import_picker_overlay(
+    frame: &mut Frame<'_>,
+    content_area: Rect,
+    theme: &theme::Theme,
+    skills: &[crate::services::skill::UnmanagedSkill],
+    selected_idx: usize,
+    selected: &std::collections::HashSet<String>,
+) {
+    render_skill_import_picker_overlay(
+        frame,
+        content_area,
+        theme,
+        texts::tui_skills_agent_import_title(),
+        texts::tui_skills_agent_import_description(),
+        skills,
+        selected_idx,
+        selected,
+    );
+}
+
+fn render_skill_import_picker_overlay(
+    frame: &mut Frame<'_>,
+    content_area: Rect,
+    theme: &theme::Theme,
+    title: &str,
+    description: &str,
+    skills: &[crate::services::skill::UnmanagedSkill],
+    selected_idx: usize,
+    selected: &std::collections::HashSet<String>,
+) {
     let area = centered_rect_fixed(OVERLAY_FIXED_LG.0, OVERLAY_FIXED_LG.1, content_area);
     frame.render_widget(Clear, area);
 
@@ -751,7 +850,7 @@ pub(super) fn render_skills_import_picker_overlay(
         .borders(Borders::ALL)
         .border_type(BorderType::Plain)
         .border_style(overlay_border_style(theme, true))
-        .title(texts::tui_skills_import_title())
+        .title(title)
         .style(if theme.no_color {
             Style::default()
         } else {
@@ -782,7 +881,7 @@ pub(super) fn render_skills_import_picker_overlay(
     );
 
     frame.render_widget(
-        Paragraph::new(texts::tui_skills_import_description())
+        Paragraph::new(description)
             .style(Style::default().fg(theme.dim))
             .wrap(Wrap { trim: false }),
         chunks[1],

@@ -57,6 +57,40 @@ pub(crate) fn open_skills_import_picker(app: &mut App) -> Result<(), AppError> {
     open_skills_import_picker_with(app, SkillService::scan_unmanaged)
 }
 
+pub(crate) fn open_agent_skills_import_picker_with<F>(
+    app: &mut App,
+    scan: F,
+) -> Result<(), AppError>
+where
+    F: FnOnce() -> Result<Vec<crate::services::skill::UnmanagedSkill>, AppError>,
+{
+    let skills = scan()?;
+    app.skills_unmanaged_results = skills.clone();
+    app.skills_unmanaged_selected.clear();
+    app.skills_unmanaged_idx = 0;
+
+    if skills.is_empty() {
+        app.overlay = Overlay::None;
+        app.push_toast(texts::skills_no_agent_installed_found(), ToastKind::Info);
+        return Ok(());
+    }
+
+    let selected = skills
+        .iter()
+        .map(|skill| skill.directory.clone())
+        .collect::<HashSet<_>>();
+    app.overlay = Overlay::SkillsAgentImportPicker {
+        skills,
+        selected_idx: 0,
+        selected,
+    };
+    Ok(())
+}
+
+pub(crate) fn open_agent_skills_import_picker(app: &mut App) -> Result<(), AppError> {
+    open_agent_skills_import_picker_with(app, SkillService::scan_agent_installed)
+}
+
 pub(crate) fn finish_skills_import_with<FImport, FLoad>(
     app: &mut App,
     data: &mut UiData,

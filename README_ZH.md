@@ -19,7 +19,7 @@
 
 ## 📖 关于本项目
 
-本项目是原版 [CC-Switch](https://github.com/farion1231/cc-switch) 的 **CLI 分支**。🔄 WebDAV 同步功能与上游项目完全兼容。
+本项目是以上游仓库 [SaladDay/cc-switch-cli](https://github.com/SaladDay/cc-switch-cli) 为基础的 **TUI 分支**。🔄 WebDAV 同步功能与上游项目完全兼容。
 
 
 **致谢：** 原始架构和核心功能来自 [farion1231/cc-switch](https://github.com/farion1231/cc-switch)

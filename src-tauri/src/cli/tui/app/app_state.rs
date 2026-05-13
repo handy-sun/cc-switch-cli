@@ -45,8 +45,12 @@ pub enum Action {
         enabled: bool,
     },
     SkillsOpenImport,
+    SkillsOpenAgentImport,
     SkillsScanUnmanaged,
     SkillsImportFromApps {
+        directories: Vec<String>,
+    },
+    SkillsImportFromAgent {
         directories: Vec<String>,
     },
 

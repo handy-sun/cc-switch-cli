@@ -28,7 +28,12 @@ pub fn reset_test_fs() {
     let home = ensure_test_home();
     for sub in [
         ".claude",
+        ".claude-env-home",
         ".codex",
+        ".codex-agent-home",
+        ".agents",
+        ".hermes",
+        ".hermes-env-home",
         ".cc-switch",
         ".cc-switch-tui",
         ".gemini",

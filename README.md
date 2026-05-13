@@ -21,7 +21,7 @@ English | [中文](README_ZH.md)
 
 ## 📖 About
 
-This project is a **TUI fork** of [CC-Switch](https://github.com/farion1231/cc-switch). 
+This project is a **TUI fork** whose upstream repository is [SaladDay/cc-switch-cli](https://github.com/SaladDay/cc-switch-cli).
 
 🔄 The WebDAV sync feature is fully compatible with the upstream project.
 

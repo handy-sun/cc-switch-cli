@@ -12,6 +12,9 @@ impl App {
         if let Some(action) = self.handle_claude_api_format_picker_key(key, data) {
             return Some(action);
         }
+        if let Some(action) = self.handle_provider_test_menu_key(key, data) {
+            return Some(action);
+        }
         if let Some(action) = self.handle_claude_model_picker_key(key) {
             return Some(action);
         }
@@ -37,6 +40,9 @@ impl App {
             return Some(action);
         }
         if let Some(action) = self.handle_skills_import_picker_key(key) {
+            return Some(action);
+        }
+        if let Some(action) = self.handle_skills_agent_import_picker_key(key) {
             return Some(action);
         }
         if let Some(action) = self.handle_failover_queue_manager_key(key, data) {
@@ -135,6 +141,61 @@ impl App {
         })
     }
 
+    fn handle_provider_test_menu_key(&mut self, key: KeyEvent, data: &UiData) -> Option<Action> {
+        let Overlay::ProviderTestMenu {
+            provider_id,
+            selected,
+        } = &mut self.overlay
+        else {
+            return None;
+        };
+
+        let items = provider_test_menu_items(&self.app_type);
+        if items.is_empty() {
+            self.overlay = Overlay::None;
+            return Some(Action::None);
+        }
+
+        *selected = (*selected).min(items.len() - 1);
+
+        Some(match key.code {
+            KeyCode::Esc => {
+                self.overlay = Overlay::None;
+                Action::None
+            }
+            KeyCode::Up => {
+                *selected = selected.saturating_sub(1);
+                Action::None
+            }
+            KeyCode::Down => {
+                *selected = (*selected + 1).min(items.len() - 1);
+                Action::None
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                let provider_id = provider_id.clone();
+                let item = items[*selected];
+                let row = data
+                    .providers
+                    .rows
+                    .iter()
+                    .find(|provider_row| provider_row.id == provider_id)
+                    .cloned();
+
+                self.overlay = Overlay::None;
+
+                let Some(row) = row else {
+                    return Some(Action::None);
+                };
+
+                match item {
+                    ProviderTestMenuItem::Speedtest => self.provider_speedtest_action(&row),
+                    ProviderTestMenuItem::StreamCheck => self.provider_stream_check_action(&row),
+                }
+            }
+            _ => Action::None,
+        })
+    }
+
     fn handle_claude_model_picker_key(&mut self, key: KeyEvent) -> Option<Action> {
         let Overlay::ClaudeModelPicker { .. } = &self.overlay else {
             return None;
@@ -185,58 +246,14 @@ impl App {
                 }
                 Action::None
             }
-            KeyCode::Left => {
+            _ => {
                 if let Some(input) = provider.claude_model_input_mut(selected) {
-                    input.move_left();
-                }
-                Action::None
-            }
-            KeyCode::Right => {
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    input.move_right();
-                }
-                Action::None
-            }
-            KeyCode::Home => {
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    input.move_home();
-                }
-                Action::None
-            }
-            KeyCode::End => {
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    input.move_end();
-                }
-                Action::None
-            }
-            KeyCode::Backspace => {
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    if input.backspace() {
+                    if input.apply_key(key).is_some_and(|edit| edit.changed) {
                         provider.mark_claude_model_config_touched();
                     }
                 }
                 Action::None
             }
-            KeyCode::Delete => {
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    if input.delete() {
-                        provider.mark_claude_model_config_touched();
-                    }
-                }
-                Action::None
-            }
-            KeyCode::Char(c) => {
-                if c.is_control() {
-                    return Action::None;
-                }
-                if let Some(input) = provider.claude_model_input_mut(selected) {
-                    if input.insert_char(c) {
-                        provider.mark_claude_model_config_touched();
-                    }
-                }
-                Action::None
-            }
-            _ => Action::None,
         }
     }
 
@@ -320,7 +337,7 @@ impl App {
             KeyCode::Up => {
                 *selected_idx = selected_idx.saturating_sub(1);
                 if let Some(model) = filtered.get(*selected_idx) {
-                    *input = (*model).to_string();
+                    input.set((*model).to_string());
                 }
                 Action::None
             }
@@ -328,35 +345,21 @@ impl App {
                 if !filtered.is_empty() {
                     *selected_idx = (*selected_idx + 1).min(filtered.len() - 1);
                     if let Some(model) = filtered.get(*selected_idx) {
-                        *input = (*model).to_string();
+                        input.set((*model).to_string());
                     }
                 }
                 Action::None
             }
             KeyCode::Tab => {
                 if let Some(model) = filtered.get(*selected_idx) {
-                    *input = (*model).to_string();
-                    *query = (*model).to_string();
+                    input.set((*model).to_string());
+                    *query = input.value.clone();
                     *selected_idx = 0;
                 }
-                Action::None
-            }
-            KeyCode::Backspace => {
-                if !input.is_empty() {
-                    input.pop();
-                    *query = input.clone();
-                    *selected_idx = 0;
-                }
-                Action::None
-            }
-            KeyCode::Char(c) if !c.is_control() => {
-                input.push(c);
-                *query = input.clone();
-                *selected_idx = 0;
                 Action::None
             }
             KeyCode::Enter => {
-                let selected_model = input.trim().to_string();
+                let selected_model = input.value.trim().to_string();
                 if selected_model.is_empty() {
                     self.overlay = Overlay::None;
                     return Some(Action::None);
@@ -380,7 +383,13 @@ impl App {
                 }
                 Action::None
             }
-            _ => Action::None,
+            _ => {
+                if input.apply_key(key).is_some_and(|edit| edit.changed) {
+                    *query = input.value.clone();
+                    *selected_idx = 0;
+                }
+                Action::None
+            }
         })
     }
 
@@ -740,6 +749,61 @@ impl App {
                     .collect();
                 self.overlay = Overlay::None;
                 Action::SkillsImportFromApps { directories }
+            }
+            _ => Action::None,
+        })
+    }
+
+    fn handle_skills_agent_import_picker_key(&mut self, key: KeyEvent) -> Option<Action> {
+        let Overlay::SkillsAgentImportPicker {
+            skills,
+            selected_idx,
+            selected,
+        } = &mut self.overlay
+        else {
+            return None;
+        };
+
+        Some(match key.code {
+            KeyCode::Esc => {
+                self.overlay = Overlay::None;
+                Action::None
+            }
+            KeyCode::Up => {
+                *selected_idx = selected_idx.saturating_sub(1);
+                Action::None
+            }
+            KeyCode::Down => {
+                if !skills.is_empty() {
+                    *selected_idx = (*selected_idx + 1).min(skills.len() - 1);
+                }
+                Action::None
+            }
+            KeyCode::Char('x') | KeyCode::Char(' ') => {
+                let Some(skill) = skills.get(*selected_idx) else {
+                    return Some(Action::None);
+                };
+                if selected.contains(&skill.directory) {
+                    selected.remove(&skill.directory);
+                } else {
+                    selected.insert(skill.directory.clone());
+                }
+                Action::None
+            }
+            KeyCode::Char('r') => Action::SkillsOpenAgentImport,
+            KeyCode::Char('i') | KeyCode::Enter => {
+                if selected.is_empty() {
+                    self.push_toast(texts::tui_toast_no_unmanaged_selected(), ToastKind::Info);
+                    return Some(Action::None);
+                }
+
+                let directories = skills
+                    .iter()
+                    .filter(|skill| selected.contains(&skill.directory))
+                    .map(|skill| skill.directory.clone())
+                    .collect();
+                self.overlay = Overlay::None;
+                Action::SkillsImportFromAgent { directories }
             }
             _ => Action::None,
         })

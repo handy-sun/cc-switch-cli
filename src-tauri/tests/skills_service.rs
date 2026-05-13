@@ -13,6 +13,20 @@ fn write_skill_md(dir: &std::path::Path, name: &str, description: &str) {
     .expect("write SKILL.md");
 }
 
+struct EnvVarGuard {
+    key: &'static str,
+    old_value: Option<std::ffi::OsString>,
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.old_value {
+            Some(value) => unsafe { std::env::set_var(self.key, value) },
+            None => unsafe { std::env::remove_var(self.key) },
+        }
+    }
+}
+
 #[test]
 fn list_installed_triggers_initial_ssot_migration() {
     let _guard = lock_test_mutex();
@@ -153,6 +167,486 @@ fn scan_unmanaged_includes_agents_and_ssot_sources() {
         .found_in
         .iter()
         .any(|source| source == "cc-switch-tui"));
+}
+
+#[test]
+fn scan_agent_installed_reads_all_agent_tool_dirs_and_excludes_noop_managed() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".agents").join("skills").join("agent-skill"),
+        "Agent Skill",
+        "Found in agent",
+    );
+    write_skill_md(
+        &home.join(".claude").join("skills").join("claude-skill"),
+        "Claude Skill",
+        "Found in Claude",
+    );
+    write_skill_md(
+        &home.join(".hermes").join("skills").join("hermes-skill"),
+        "Hermes Skill",
+        "Found in Hermes",
+    );
+    write_skill_md(
+        &home.join(".agents").join("skills").join("managed-skill"),
+        "Managed Skill",
+        "Already managed",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["managed-skill".to_string()])
+        .expect("seed managed skill from agent");
+    assert_eq!(imported.len(), 1);
+
+    let agent_skills = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "agent-skill"),
+        "agent skill should be visible"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "claude-skill"
+                && skill.found_in.iter().any(|source| source == "claude")),
+        "Claude skill directory should be visible in agent import flow"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "hermes-skill"
+                && skill.found_in.iter().any(|source| source == "hermes")),
+        "Hermes skill directory should be visible in agent import flow"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "managed-skill"),
+        "already managed agent skills should not be offered again"
+    );
+}
+
+#[test]
+fn scan_agent_installed_excludes_hermes_bundled_and_category_dirs() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let hermes_skills = home.join(".hermes").join("skills");
+
+    std::fs::create_dir_all(&hermes_skills).expect("create Hermes skills dir");
+    std::fs::write(
+        hermes_skills.join(".bundled_manifest"),
+        "builtin-skill:abc123\nnested-skill:def456\n",
+    )
+    .expect("write bundled manifest");
+    write_skill_md(
+        &hermes_skills.join("builtin-skill"),
+        "Builtin Skill",
+        "Bundled by Hermes",
+    );
+    write_skill_md(
+        &hermes_skills.join("user-skill"),
+        "User Skill",
+        "Installed by user",
+    );
+    write_skill_md(
+        &hermes_skills.join("category").join("nested-skill"),
+        "Nested Skill",
+        "Bundled inside category",
+    );
+
+    let agent_skills = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+
+    assert!(
+        agent_skills
+            .iter()
+            .any(|skill| skill.directory == "user-skill"
+                && skill.found_in.iter().any(|source| source == "hermes")),
+        "non-bundled Hermes skills should still be visible"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "builtin-skill"),
+        "Hermes bundled skills should not be offered for import"
+    );
+    assert!(
+        agent_skills
+            .iter()
+            .all(|skill| skill.directory != "category"),
+        "category directories without a root SKILL.md should not be offered"
+    );
+}
+
+#[test]
+fn import_from_agent_ignores_hermes_bundled_skill() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let hermes_skills = home.join(".hermes").join("skills");
+
+    std::fs::create_dir_all(&hermes_skills).expect("create Hermes skills dir");
+    std::fs::write(
+        hermes_skills.join(".bundled_manifest"),
+        "builtin-skill:abc123\n",
+    )
+    .expect("write bundled manifest");
+    write_skill_md(
+        &hermes_skills.join("builtin-skill"),
+        "Builtin Skill",
+        "Bundled by Hermes",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["builtin-skill".to_string()])
+        .expect("import should ignore bundled skill without failing");
+
+    assert!(
+        imported.is_empty(),
+        "direct import should not claim Hermes bundled skills"
+    );
+    assert!(
+        !SkillService::get_ssot_dir()
+            .expect("get ssot dir")
+            .join("builtin-skill")
+            .exists(),
+        "bundled skill should not be copied into SSOT"
+    );
+}
+
+#[test]
+fn import_from_agent_prefers_agents_dir_when_same_directory_exists_elsewhere() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".claude").join("skills").join("same-skill"),
+        "Claude Skill",
+        "From claude",
+    );
+    write_skill_md(
+        &home.join(".agents").join("skills").join("same-skill"),
+        "Agent Skill",
+        "From agent",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["same-skill".to_string()])
+        .expect("import should prefer agents source");
+
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].name, "Agent Skill");
+    assert_eq!(imported[0].description.as_deref(), Some("From agent"));
+    assert!(
+        imported[0].apps.claude,
+        "agent import should preserve that the skill is already installed for Claude"
+    );
+
+    let ssot_skill_md = SkillService::get_ssot_dir()
+        .expect("get ssot dir")
+        .join("same-skill")
+        .join("SKILL.md");
+    let content = std::fs::read_to_string(ssot_skill_md).expect("read imported skill");
+    assert!(
+        content.contains("name: Agent Skill"),
+        "SSOT content should come from ~/.agents/skills"
+    );
+}
+
+#[test]
+fn import_from_agent_reads_codex_home_skills_and_enables_codex() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_codex_home = std::env::var_os("CODEX_HOME");
+    let _codex_home_guard = EnvVarGuard {
+        key: "CODEX_HOME",
+        old_value: old_codex_home,
+    };
+    let codex_home = home.join(".codex-agent-home");
+    unsafe {
+        std::env::set_var("CODEX_HOME", &codex_home);
+    }
+
+    write_skill_md(
+        &codex_home.join("skills").join("codex-agent-skill"),
+        "Codex Agent Skill",
+        "From Codex agent",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "codex-agent-skill"
+                && skill.found_in == vec!["codex".to_string()]),
+        "Codex agent home skills should be offered by the agent import flow"
+    );
+
+    let imported = SkillService::import_from_agent(vec!["codex-agent-skill".to_string()])
+        .expect("import Codex agent skill");
+
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].name, "Codex Agent Skill");
+    assert!(
+        imported[0].apps.codex,
+        "agent import should preserve that the skill is already installed for Codex"
+    );
+    assert!(
+        SkillService::get_ssot_dir()
+            .expect("get ssot dir")
+            .join("codex-agent-skill")
+            .exists(),
+        "Codex agent skill should be copied into SSOT"
+    );
+}
+
+#[test]
+fn scan_agent_installed_prefers_claude_config_dir_env_over_default() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_claude_config_dir = std::env::var_os("CLAUDE_CONFIG_DIR");
+    let _claude_config_guard = EnvVarGuard {
+        key: "CLAUDE_CONFIG_DIR",
+        old_value: old_claude_config_dir,
+    };
+    let claude_home = home.join(".claude-env-home");
+    unsafe {
+        std::env::set_var("CLAUDE_CONFIG_DIR", &claude_home);
+    }
+
+    write_skill_md(
+        &claude_home.join("skills").join("env-claude-skill"),
+        "Env Claude Skill",
+        "From CLAUDE_CONFIG_DIR",
+    );
+    write_skill_md(
+        &home
+            .join(".claude")
+            .join("skills")
+            .join("fallback-claude-skill"),
+        "Fallback Claude Skill",
+        "From default Claude dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "env-claude-skill"
+                && skill.found_in == vec!["claude".to_string()]),
+        "CLAUDE_CONFIG_DIR skills should be offered first"
+    );
+    assert!(
+        scan_result
+            .iter()
+            .all(|skill| skill.directory != "fallback-claude-skill"),
+        "default Claude skills should not be scanned when CLAUDE_CONFIG_DIR skills exist"
+    );
+}
+
+#[test]
+fn scan_agent_installed_falls_back_when_claude_config_dir_env_has_no_skills() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_claude_config_dir = std::env::var_os("CLAUDE_CONFIG_DIR");
+    let _claude_config_guard = EnvVarGuard {
+        key: "CLAUDE_CONFIG_DIR",
+        old_value: old_claude_config_dir,
+    };
+    unsafe {
+        std::env::set_var("CLAUDE_CONFIG_DIR", home.join(".claude-env-home"));
+    }
+
+    write_skill_md(
+        &home
+            .join(".claude")
+            .join("skills")
+            .join("fallback-claude-skill"),
+        "Fallback Claude Skill",
+        "From default Claude dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "fallback-claude-skill"
+                && skill.found_in == vec!["claude".to_string()]),
+        "default Claude skills should be scanned when CLAUDE_CONFIG_DIR has no skills directory"
+    );
+}
+
+#[test]
+fn scan_agent_installed_falls_back_when_env_skills_path_is_not_directory() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_hermes_home = std::env::var_os("HERMES_HOME");
+    let _hermes_home_guard = EnvVarGuard {
+        key: "HERMES_HOME",
+        old_value: old_hermes_home,
+    };
+    let hermes_home = home.join(".hermes-env-home");
+    unsafe {
+        std::env::set_var("HERMES_HOME", &hermes_home);
+    }
+    std::fs::create_dir_all(&hermes_home).expect("create Hermes env home");
+    std::fs::write(hermes_home.join("skills"), "not a directory").expect("write skills file");
+
+    write_skill_md(
+        &home
+            .join(".hermes")
+            .join("skills")
+            .join("fallback-hermes-skill"),
+        "Fallback Hermes Skill",
+        "From default Hermes dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "fallback-hermes-skill"
+                && skill.found_in == vec!["hermes".to_string()]),
+        "default Hermes skills should be scanned when HERMES_HOME/skills is not a directory"
+    );
+}
+
+#[test]
+fn import_from_agent_prefers_hermes_home_env_and_enables_hermes() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+    let old_hermes_home = std::env::var_os("HERMES_HOME");
+    let _hermes_home_guard = EnvVarGuard {
+        key: "HERMES_HOME",
+        old_value: old_hermes_home,
+    };
+    let hermes_home = home.join(".hermes-env-home");
+    unsafe {
+        std::env::set_var("HERMES_HOME", &hermes_home);
+    }
+
+    write_skill_md(
+        &hermes_home.join("skills").join("env-hermes-skill"),
+        "Env Hermes Skill",
+        "From HERMES_HOME",
+    );
+    write_skill_md(
+        &home
+            .join(".hermes")
+            .join("skills")
+            .join("fallback-hermes-skill"),
+        "Fallback Hermes Skill",
+        "From default Hermes dir",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "env-hermes-skill"
+                && skill.found_in == vec!["hermes".to_string()]),
+        "HERMES_HOME skills should be offered first"
+    );
+    assert!(
+        scan_result
+            .iter()
+            .all(|skill| skill.directory != "fallback-hermes-skill"),
+        "default Hermes skills should not be scanned when HERMES_HOME skills exist"
+    );
+
+    let imported = SkillService::import_from_agent(vec!["env-hermes-skill".to_string()])
+        .expect("import Hermes env skill");
+    assert_eq!(imported.len(), 1);
+    assert!(imported[0].apps.hermes);
+}
+
+#[test]
+fn import_from_agent_imports_hermes_skill_and_enables_hermes() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".hermes").join("skills").join("hermes-skill"),
+        "Hermes Skill",
+        "From Hermes",
+    );
+
+    let imported = SkillService::import_from_agent(vec!["hermes-skill".to_string()])
+        .expect("import Hermes skill");
+
+    assert_eq!(imported.len(), 1);
+    assert_eq!(imported[0].directory, "hermes-skill");
+    assert!(
+        imported[0].apps.hermes,
+        "import_from_agent should enable Hermes when importing from ~/.hermes/skills"
+    );
+    assert!(
+        SkillService::get_ssot_dir()
+            .expect("get ssot dir")
+            .join("hermes-skill")
+            .exists(),
+        "Hermes skill should be copied into SSOT"
+    );
+}
+
+#[test]
+fn import_from_agent_backfills_existing_managed_skill_app_enablement() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    write_skill_md(
+        &home.join(".agents").join("skills").join("shared-skill"),
+        "Shared Skill",
+        "Initially generic",
+    );
+    let imported = SkillService::import_from_agent(vec!["shared-skill".to_string()])
+        .expect("seed generic managed skill");
+    assert_eq!(imported.len(), 1);
+    assert!(
+        imported[0].apps.is_empty(),
+        "generic .agents skill should not enable an app by itself"
+    );
+
+    write_skill_md(
+        &home.join(".hermes").join("skills").join("shared-skill"),
+        "Shared Skill",
+        "Now installed for Hermes",
+    );
+
+    let scan_result = SkillService::scan_agent_installed().expect("scan agent-installed skills");
+    assert!(
+        scan_result
+            .iter()
+            .any(|skill| skill.directory == "shared-skill"
+                && skill.found_in.iter().any(|source| source == "hermes")),
+        "managed skills should be offered when an app-local install can backfill enablement"
+    );
+
+    let backfilled = SkillService::import_from_agent(vec!["shared-skill".to_string()])
+        .expect("backfill Hermes enablement");
+
+    assert_eq!(backfilled.len(), 1);
+    assert!(
+        backfilled[0].apps.hermes,
+        "existing managed skill should gain Hermes enablement"
+    );
+
+    let installed = SkillService::list_installed().expect("list installed skills");
+    let skill = installed
+        .iter()
+        .find(|skill| skill.directory == "shared-skill")
+        .expect("shared skill should remain installed");
+    assert!(skill.apps.hermes, "Hermes enablement should persist");
 }
 
 #[test]

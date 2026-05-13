@@ -310,6 +310,26 @@ mod tests {
         }
     }
 
+    struct SettingsGuard {
+        original: crate::settings::AppSettings,
+    }
+
+    impl SettingsGuard {
+        fn with_claude_config_dir(dir: Option<&str>) -> Self {
+            let original = crate::settings::get_settings();
+            let mut settings = original.clone();
+            settings.claude_config_dir = dir.map(str::to_string);
+            crate::settings::update_settings(settings).unwrap();
+            Self { original }
+        }
+    }
+
+    impl Drop for SettingsGuard {
+        fn drop(&mut self) {
+            let _ = crate::settings::update_settings(self.original.clone());
+        }
+    }
+
     #[test]
     fn derive_mcp_path_from_override_preserves_folder_name() {
         let override_dir = PathBuf::from("/tmp/profile/.claude");
@@ -343,7 +363,8 @@ mod tests {
     #[test]
     fn get_app_config_dir_defaults_to_home_dot_cc_switch() {
         let _guard = lock_test_home_and_settings();
-        let _env = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", None);
         set_test_home_override(Some(Path::new("/tmp/cc-switch-home-default")));
 
         assert_eq!(
@@ -357,7 +378,8 @@ mod tests {
     #[test]
     fn get_app_config_dir_uses_env_override_when_set() {
         let _guard = lock_test_home_and_settings();
-        let _env = ConfigDirEnvGuard::new(
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new(
             "CC_SWITCH_CONFIG_DIR",
             Some("/tmp/cc-switch-config-override"),
         );
@@ -374,7 +396,8 @@ mod tests {
     #[test]
     fn get_app_config_dir_ignores_blank_env_override() {
         let _guard = lock_test_home_and_settings();
-        let _env = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", Some("   "));
+        let _tui = ConfigDirEnvGuard::new("CC_SWITCH_TUI_CONFIG_DIR", None);
+        let _old = ConfigDirEnvGuard::new("CC_SWITCH_CONFIG_DIR", Some("   "));
         set_test_home_override(Some(Path::new("/tmp/cc-switch-home-blank")));
 
         assert_eq!(
@@ -463,10 +486,7 @@ mod tests {
     #[test]
     fn get_claude_config_dir_ignores_blank_env_var() {
         let _guard = lock_test_home_and_settings();
-        let original_settings = crate::settings::get_settings();
-        let mut settings = original_settings.clone();
-        settings.claude_config_dir = None;
-        crate::settings::update_settings(settings).unwrap();
+        let _settings = SettingsGuard::with_claude_config_dir(None);
         let _env = ConfigDirEnvGuard::new("CLAUDE_CONFIG_DIR", Some("   "));
         set_test_home_override(Some(Path::new("/tmp/claude-home-blank")));
 
@@ -475,17 +495,13 @@ mod tests {
             PathBuf::from("/tmp/claude-home-blank").join(".claude")
         );
 
-        crate::settings::update_settings(original_settings).unwrap();
         set_test_home_override(None);
     }
 
     #[test]
     fn get_claude_config_dir_falls_back_to_default_when_nothing_set() {
         let _guard = lock_test_home_and_settings();
-        let original_settings = crate::settings::get_settings();
-        let mut settings = original_settings.clone();
-        settings.claude_config_dir = None;
-        crate::settings::update_settings(settings).unwrap();
+        let _settings = SettingsGuard::with_claude_config_dir(None);
         let _env = ConfigDirEnvGuard::new("CLAUDE_CONFIG_DIR", None);
         set_test_home_override(Some(Path::new("/tmp/default-home")));
 
@@ -494,33 +510,25 @@ mod tests {
             PathBuf::from("/tmp/default-home").join(".claude")
         );
 
-        crate::settings::update_settings(original_settings).unwrap();
         set_test_home_override(None);
     }
 
     #[test]
     fn get_claude_config_dir_env_overrides_settings() {
         let _guard = lock_test_home_and_settings();
-        let original_settings = crate::settings::get_settings();
-        let mut settings = original_settings.clone();
-        settings.claude_config_dir = Some("/tmp/settings-override".to_string());
-        crate::settings::update_settings(settings).unwrap();
+        let _settings = SettingsGuard::with_claude_config_dir(Some("/tmp/settings-override"));
         let _env = ConfigDirEnvGuard::new("CLAUDE_CONFIG_DIR", Some("/tmp/env-override"));
         set_test_home_override(Some(Path::new("/tmp/home")));
 
         assert_eq!(get_claude_config_dir(), PathBuf::from("/tmp/env-override"));
 
-        crate::settings::update_settings(original_settings).unwrap();
         set_test_home_override(None);
     }
 
     #[test]
     fn get_claude_config_dir_blank_env_falls_back_to_settings() {
         let _guard = lock_test_home_and_settings();
-        let original_settings = crate::settings::get_settings();
-        let mut settings = original_settings.clone();
-        settings.claude_config_dir = Some("/tmp/settings-override".to_string());
-        crate::settings::update_settings(settings).unwrap();
+        let _settings = SettingsGuard::with_claude_config_dir(Some("/tmp/settings-override"));
         let _env = ConfigDirEnvGuard::new("CLAUDE_CONFIG_DIR", Some("   "));
         set_test_home_override(Some(Path::new("/tmp/home")));
 
@@ -529,7 +537,6 @@ mod tests {
             PathBuf::from("/tmp/settings-override")
         );
 
-        crate::settings::update_settings(original_settings).unwrap();
         set_test_home_override(None);
     }
 

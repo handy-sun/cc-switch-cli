@@ -289,6 +289,14 @@ pub fn skills_no_unmanaged_found() -> &'static str {
     }
 }
 
+pub fn skills_no_agent_installed_found() -> &'static str {
+    if is_chinese() {
+        "未发现可导入或可补齐启用状态的智能体技能。"
+    } else {
+        "No agent skills found to import or backfill enablement for."
+    }
+}
+
 pub fn skills_select_unmanaged_to_import() -> &'static str {
     if is_chinese() {
         "选择要导入的技能："

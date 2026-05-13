@@ -38,6 +38,18 @@ pub(crate) fn render_overlay(
                 *selected,
             )
         }
+        Overlay::ProviderTestMenu {
+            provider_id,
+            selected,
+        } => super::pickers::render_provider_test_menu_overlay(
+            frame,
+            app,
+            data,
+            content_area,
+            theme,
+            provider_id,
+            *selected,
+        ),
         Overlay::FailoverQueueManager { selected } => {
             super::pickers::render_failover_queue_manager_overlay(
                 frame,
@@ -157,6 +169,18 @@ pub(crate) fn render_overlay(
             selected_idx,
             selected,
         } => super::pickers::render_skills_import_picker_overlay(
+            frame,
+            content_area,
+            theme,
+            skills,
+            *selected_idx,
+            selected,
+        ),
+        Overlay::SkillsAgentImportPicker {
+            skills,
+            selected_idx,
+            selected,
+        } => super::pickers::render_skills_agent_import_picker_overlay(
             frame,
             content_area,
             theme,
