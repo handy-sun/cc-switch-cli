@@ -48,6 +48,9 @@ fn initialize_auto_test_home_env() {
     env::set_var(TEST_HOME_ENV, &home);
     env::remove_var("CC_SWITCH_TUI_CONFIG_DIR");
     env::remove_var("CC_SWITCH_CONFIG_DIR");
+    env::remove_var("CLAUDE_CONFIG_DIR");
+    env::remove_var("CODEX_HOME");
+    env::remove_var("HERMES_HOME");
 }
 
 fn is_test_executable() -> bool {
@@ -64,6 +67,9 @@ fn default_auto_test_home() -> PathBuf {
 
 pub(crate) fn auto_test_home() -> Option<PathBuf> {
     ensure_auto_test_home_env();
+    if !is_test_executable() {
+        return None;
+    }
     env::var_os(TEST_HOME_ENV).map(PathBuf::from)
 }
 

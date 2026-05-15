@@ -269,7 +269,7 @@ fn parse_branch_from_source_url(source_url: Option<&str>) -> Option<String> {
 }
 
 fn get_agents_skills_dir() -> Option<PathBuf> {
-    dirs::home_dir()
+    crate::config::home_dir()
         .map(|home| home.join(".agents").join("skills"))
         .filter(|path| path.exists())
 }
@@ -344,7 +344,7 @@ fn get_app_fallback_skills_dir(app: &AppType) -> Result<PathBuf, AppError> {
         }
     }
 
-    let home = dirs::home_dir().ok_or_else(|| {
+    let home = crate::config::home_dir().ok_or_else(|| {
         AppError::Message(format_skill_error(
             "GET_HOME_DIR_FAILED",
             &[],
@@ -425,7 +425,7 @@ fn agent_skill_sources() -> Vec<AgentSkillSource> {
 }
 
 fn parse_agents_lock() -> HashMap<String, LockRepoInfo> {
-    let path = match dirs::home_dir() {
+    let path = match crate::config::home_dir() {
         Some(home) => home.join(".agents").join(".skill-lock.json"),
         None => return HashMap::new(),
     };

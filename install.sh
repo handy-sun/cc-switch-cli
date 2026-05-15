@@ -64,7 +64,7 @@ confirm_overwrite_if_needed() {
     return 0
   fi
 
-  if ! exec 3<> /dev/tty 2>/dev/null; then
+  if [[ ! -t 0 || ! -t 1 ]] || ! exec 3<> /dev/tty 2>/dev/null; then
     err "Existing installation detected at ${TARGET}${target_version:+ (${target_version})}."
     err "Nothing was overwritten. Re-run interactively to confirm the update, or set CC_SWITCH_FORCE=1 to allow overwrite."
     exit 1

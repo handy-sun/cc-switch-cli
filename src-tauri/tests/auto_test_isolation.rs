@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cc_switch_lib::{get_app_config_dir, get_claude_mcp_path};
+use cc_switch_lib::{get_app_config_dir, get_claude_mcp_path, get_claude_settings_path};
 
 #[test]
 fn cargo_test_uses_isolated_home_without_per_test_setup() {
@@ -13,6 +13,13 @@ fn cargo_test_uses_isolated_home_without_per_test_setup() {
     );
     assert_eq!(std::env::var_os("CC_SWITCH_TUI_CONFIG_DIR"), None);
     assert_eq!(std::env::var_os("CC_SWITCH_CONFIG_DIR"), None);
+    assert_eq!(std::env::var_os("CLAUDE_CONFIG_DIR"), None);
+    assert_eq!(std::env::var_os("CODEX_HOME"), None);
+    assert_eq!(std::env::var_os("HERMES_HOME"), None);
     assert_eq!(get_app_config_dir(), expected_home.join(".cc-switch-tui"));
     assert_eq!(get_claude_mcp_path(), expected_home.join(".claude.json"));
+    assert_eq!(
+        get_claude_settings_path(),
+        expected_home.join(".claude").join("settings.json")
+    );
 }
