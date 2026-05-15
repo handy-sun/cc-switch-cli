@@ -27,6 +27,7 @@ pub(crate) fn test_home_override() -> Option<PathBuf> {
         .read()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .clone()
+        .or_else(crate::config::auto_test_home)
 }
 
 /// Serialises tests that mutate the global CodexOAuthService manager_store.

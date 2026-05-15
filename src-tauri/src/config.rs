@@ -3,12 +3,77 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Once;
 
 use crate::error::AppError;
+
+const TEST_HOME_ENV: &str = "CC_SWITCH_TEST_HOME";
+
+#[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
+#[cfg_attr(
+    any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "netbsd"
+    ),
+    link_section = ".init_array"
+)]
+#[cfg_attr(windows, link_section = ".CRT$XCU")]
+#[used]
+static AUTO_TEST_HOME_INIT: extern "C" fn() = auto_test_home_ctor;
+
+extern "C" fn auto_test_home_ctor() {
+    initialize_auto_test_home_env();
+}
+
+fn ensure_auto_test_home_env() {
+    static INIT: Once = Once::new();
+    INIT.call_once(initialize_auto_test_home_env);
+}
+
+fn initialize_auto_test_home_env() {
+    if !is_test_executable() {
+        return;
+    }
+
+    let home = env::var_os(TEST_HOME_ENV)
+        .map(PathBuf::from)
+        .unwrap_or_else(default_auto_test_home);
+    let _ = fs::create_dir_all(&home);
+    env::set_var("HOME", &home);
+    #[cfg(windows)]
+    env::set_var("USERPROFILE", &home);
+    env::set_var(TEST_HOME_ENV, &home);
+    env::remove_var("CC_SWITCH_TUI_CONFIG_DIR");
+    env::remove_var("CC_SWITCH_CONFIG_DIR");
+}
+
+fn is_test_executable() -> bool {
+    env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+        .and_then(|path| path.file_name().map(|name| name.to_owned()))
+        .is_some_and(|name| name == "deps")
+}
+
+fn default_auto_test_home() -> PathBuf {
+    env::temp_dir().join(format!("cc-switch-test-home-{}", std::process::id()))
+}
+
+pub(crate) fn auto_test_home() -> Option<PathBuf> {
+    ensure_auto_test_home_env();
+    env::var_os(TEST_HOME_ENV).map(PathBuf::from)
+}
 
 pub(crate) fn home_dir() -> Option<PathBuf> {
     #[cfg(test)]
     if let Some(home) = crate::test_support::test_home_override() {
+        return Some(home);
+    }
+
+    if let Some(home) = auto_test_home() {
         return Some(home);
     }
 
