@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.3] - 2026-05-18
+
+### Added
+
+- Codex provider catalog import: press `i` on the Providers page to read live providers from `~/.codex/config.toml`, merge by stable catalog key, and create new saved providers for unrecognized entries.
+- Auto-repair conflicting custom provider keys: detect duplicate `custom` keys in `[model_providers]` before sync and rewrite them to unique keys derived from provider id/name.
+- Provider key rewrite primitives for config snapshots: rename a provider table key, rewrite profile references, and update root model_provider.
+- Skill sync method setting exposed in the TUI.
+
+### Fixed
+
+- Honor `CODEX_HOME` for MCP live sync instead of assuming the default path.
+- Preserve migrated user settings during config migration.
+- Keep tests off real config directories and isolate `cargo test` home by default.
+
+### Changed
+
+- Optimize Codex provider catalog import and sync: keep TUI-managed custom providers mirrored into the live `config.toml` `[model_providers.*]` table; tolerate broken legacy snapshots instead of aborting unrelated operations.
+- Update Rust toolchain baseline.
+
+### Removed
+
+- Remove unused TUI actions, provider proxy code, and config helpers.
+
 ## [0.1.2] - 2026-05-13
 
 ### Added
@@ -57,6 +81,7 @@ Initial release of the renamed cc-switch-tui fork.
 
 - Sponsor section from README files and partner assets
 
+[0.1.3]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.3
 [0.1.2]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/handy-sun/cc-switch-tui/releases/tag/v0.1.0
