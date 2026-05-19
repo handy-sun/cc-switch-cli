@@ -74,6 +74,11 @@ struct PostCommitAction {
     apply_hermes_switch_defaults: bool,
     common_config_snippet: Option<String>,
     takeover_active: bool,
+    /// When true, user-facing preference keys (approval_mode, disable_response_storage,
+    /// etc.) in the current live config are preserved when writing the Codex live config.
+    /// Set to false for common-snippet-only operations where old snippet values should
+    /// not bleed through.
+    preserve_live_preferences: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -158,7 +163,13 @@ impl ProviderService {
         };
 
         for provider in &providers {
-            Self::write_live_snapshot(&AppType::OpenClaw, provider, snippet.as_deref(), true)?;
+            Self::write_live_snapshot(
+                &AppType::OpenClaw,
+                provider,
+                snippet.as_deref(),
+                true,
+                true,
+            )?;
         }
 
         Ok(())
@@ -389,6 +400,7 @@ impl ProviderService {
                 &action.provider,
                 action.common_config_snippet.as_deref(),
                 apply_common_config,
+                action.preserve_live_preferences,
             )?;
             if action.apply_hermes_switch_defaults {
                 crate::hermes_config::apply_switch_defaults(
@@ -780,6 +792,7 @@ impl ProviderService {
             app_type,
             &current_provider_id,
             takeover_active,
+            false,
         )
     }
 
@@ -788,6 +801,7 @@ impl ProviderService {
         app_type: &AppType,
         current_provider_id: &str,
         takeover_active: bool,
+        preserve_live_preferences: bool,
     ) -> Result<Option<PostCommitAction>, AppError> {
         let provider = config
             .get_manager(app_type)
@@ -802,13 +816,14 @@ impl ProviderService {
             provider,
             backup: Self::capture_live_snapshot(app_type)?,
             write_live_snapshot: true,
-            sync_mcp: matches!(app_type, AppType::Codex) && !takeover_active,
+            sync_mcp: false,
             sync_codex_catalog: matches!(app_type, AppType::Codex),
             stale_codex_catalog_keys: Vec::new(),
             refresh_snapshot: false,
             apply_hermes_switch_defaults: false,
             common_config_snippet: config.common_config_snippets.get(app_type).cloned(),
             takeover_active,
+            preserve_live_preferences,
         }))
     }
 
@@ -1194,15 +1209,16 @@ impl ProviderService {
                     provider: provider_to_store.clone(),
                     backup,
                     write_live_snapshot: true,
-                    // Codex current-provider saves rewrite live config from the stored snapshot,
-                    // so managed MCP must be synced back after the write.
-                    sync_mcp: matches!(&app_type_clone, AppType::Codex),
+                    // Codex write uses merge which preserves [mcp_servers] as-is,
+                    // so no MCP re-sync is needed (would lose comment-only lines).
+                    sync_mcp: false,
                     sync_codex_catalog: matches!(&app_type_clone, AppType::Codex),
                     stale_codex_catalog_keys: Vec::new(),
                     refresh_snapshot: false,
                     apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
+                    preserve_live_preferences: true,
                 })
             } else if matches!(&app_type_clone, AppType::Codex) {
                 Some(PostCommitAction {
@@ -1217,6 +1233,7 @@ impl ProviderService {
                     apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
+                    preserve_live_preferences: true,
                 })
             } else {
                 None
@@ -1329,15 +1346,16 @@ impl ProviderService {
                     provider: merged,
                     backup,
                     write_live_snapshot: true,
-                    // Codex current-provider saves rewrite live config from the stored snapshot,
-                    // so managed MCP must be synced back after the write.
-                    sync_mcp: matches!(&app_type_clone, AppType::Codex),
+                    // Codex write uses merge which preserves [mcp_servers] as-is,
+                    // so no MCP re-sync is needed (would lose comment-only lines).
+                    sync_mcp: false,
                     sync_codex_catalog: matches!(&app_type_clone, AppType::Codex),
                     stale_codex_catalog_keys: Vec::new(),
                     refresh_snapshot: false,
                     apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
+                    preserve_live_preferences: true,
                 })
             } else if matches!(&app_type_clone, AppType::Codex) {
                 let backup = Self::capture_live_snapshot(&app_type_clone)?;
@@ -1360,6 +1378,7 @@ impl ProviderService {
                     apply_hermes_switch_defaults: false,
                     common_config_snippet,
                     takeover_active: false,
+                    preserve_live_preferences: true,
                 })
             } else {
                 None
@@ -1741,7 +1760,8 @@ impl ProviderService {
                 continue;
             }
 
-            if let Err(e) = Self::write_live_snapshot(app_type, provider, snippet.as_deref(), true)
+            if let Err(e) =
+                Self::write_live_snapshot(app_type, provider, snippet.as_deref(), true, true)
             {
                 log::warn!("sync_current_to_live: 写入 {app_type} live 配置失败: {e}");
             }
@@ -1857,6 +1877,7 @@ impl ProviderService {
                         .get(&app_type_clone)
                         .cloned(),
                     takeover_active: false,
+                    preserve_live_preferences: true,
                 };
 
                 return Ok(((), Some(action)));
@@ -1896,6 +1917,7 @@ impl ProviderService {
                 apply_hermes_switch_defaults: false,
                 common_config_snippet: config.common_config_snippets.get(&app_type_clone).cloned(),
                 takeover_active: false,
+                preserve_live_preferences: true,
             };
 
             Ok(((), Some(action)))
@@ -1913,6 +1935,7 @@ impl ProviderService {
         provider: &Provider,
         common_config_snippet: Option<&str>,
         apply_common_config: bool,
+        preserve_live_preferences: bool,
     ) -> Result<(), AppError> {
         let apply_common_config = Self::resolve_live_apply_common_config(
             app_type,
@@ -1922,9 +1945,12 @@ impl ProviderService {
         );
 
         match app_type {
-            AppType::Codex => {
-                Self::write_codex_live(provider, common_config_snippet, apply_common_config)
-            }
+            AppType::Codex => Self::write_codex_live(
+                provider,
+                common_config_snippet,
+                apply_common_config,
+                preserve_live_preferences,
+            ),
             AppType::Claude => {
                 Self::write_claude_live(provider, common_config_snippet, apply_common_config)
             }

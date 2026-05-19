@@ -994,13 +994,15 @@ impl ProviderService {
 
     /// Write Codex live configuration.
     ///
-    /// Aligned with upstream: the stored `settings_config.config` is the full config.toml text.
-    /// We write it directly to `~/.codex/config.toml`, optionally merging the common config snippet.
-    /// Auth is handled separately via auth.json.
+    /// Instead of replacing the entire config.toml, we overlay only the
+    /// provider-specific fields (model_provider, model, [model_providers])
+    /// onto the current live config. This preserves user preferences like
+    /// approval_mode, disable_response_storage, [mcp_servers], etc.
     pub(super) fn write_codex_live(
         provider: &Provider,
         common_config_snippet: Option<&str>,
         apply_common_config: bool,
+        preserve_live_preferences: bool,
     ) -> Result<(), AppError> {
         if !crate::sync_policy::should_sync_live(&AppType::Codex) {
             return Ok(());
@@ -1033,9 +1035,35 @@ impl ProviderService {
         } else {
             Some(auth)
         };
+
+        // ## Read current live config and merge — only overlay provider fields
+        let config_path = crate::codex_config::get_codex_config_path();
+        let live_text = if config_path.exists() {
+            std::fs::read_to_string(&config_path).map_err(|e| AppError::io(&config_path, e))?
+        } else {
+            String::new()
+        };
+        // When this provider has applyCommonConfig=false, the effective cfg_text
+        // intentionally omits the common-snippet preference keys, and any such
+        // keys still sitting in the live config (from a previous provider that
+        // did apply the snippet) must be wiped — i.e. live preferences must NOT
+        // win for this write. Fold that into preserve_live_preferences.
+        let effective_apply_common_config = Self::resolve_live_apply_common_config(
+            &AppType::Codex,
+            provider,
+            common_config_snippet,
+            apply_common_config,
+        );
+        let preserve_live_preferences = preserve_live_preferences && effective_apply_common_config;
+        let merged = crate::codex_config::merge_provider_into_codex_live_config(
+            &live_text,
+            cfg_text,
+            preserve_live_preferences,
+        )?;
+
         crate::codex_config::write_codex_live_atomic_optional_auth_with_stable_provider(
             auth_to_write,
-            Some(cfg_text),
+            Some(&merged),
         )?;
 
         Ok(())

@@ -482,6 +482,108 @@ pub fn restore_codex_settings_config_model_provider_for_backfill(
     Ok(())
 }
 
+/// Merge a stored provider snapshot into the current live config.
+///
+/// Strategy: edit the **live** document in place, overlaying only the entries the
+/// snapshot explicitly provides. Everything else — including comment-only lines
+/// the user has placed anywhere in the file (e.g. a `# [mcp_servers.x]` block that
+/// they have temporarily disabled) — stays untouched. This avoids any chance of
+/// commented-out sections being "reopened" or silently dropped when switching
+/// providers.
+///
+/// Rules:
+///
+/// - `[mcp_servers]` is **never** overwritten from the snapshot. The user's live
+///   `[mcp_servers]` content (active subtables, commented-out subtables, and any
+///   loose comments around them) is preserved verbatim.
+/// - Root-level user preference keys (`approval_mode`, `disable_response_storage`,
+///   `model_reasoning_effort`, `check_for_update_on_startup`):
+///     - `preserve_user_preferences = true` (provider switch): if live already has
+///       the key, live wins and the snapshot's value is ignored; if live doesn't
+///       have it, fall back to the snapshot's value. This way an initial write
+///       still seeds preferences from the snapshot (which is what carries the
+///       merged common-snippet defaults).
+///     - `preserve_user_preferences = false` (common-snippet apply/clear):
+///       snapshot drives preferences. Any preference key present in live but
+///       absent from the snapshot is removed, so old snippet leftovers don't
+///       bleed through.
+/// - Every other top-level entry the snapshot supplies (root keys like
+///   `model_provider` / `model`, tables like `[model_providers]`, `[projects]`,
+///   `[features]`, …) overwrites the same entry in live. Replacing `[model_providers]`
+///   wholesale is intentional — it ensures provider isolation, since the previous
+///   provider's `[model_providers.X]` entries are not relevant under the new key.
+pub fn merge_provider_into_codex_live_config(
+    live_text: &str,
+    provider_snapshot: &str,
+    preserve_user_preferences: bool,
+) -> Result<String, AppError> {
+    const PREFERENCE_KEYS: &[&str] = &[
+        "approval_mode",
+        "disable_response_storage",
+        "model_reasoning_effort",
+        "check_for_update_on_startup",
+    ];
+
+    let mut live = if live_text.trim().is_empty() {
+        toml_edit::DocumentMut::new()
+    } else {
+        live_text
+            .parse::<toml_edit::DocumentMut>()
+            .map_err(|e| AppError::Message(format!("Invalid Codex live config.toml: {e}")))?
+    };
+
+    let snap = if provider_snapshot.trim().is_empty() {
+        toml_edit::DocumentMut::new()
+    } else {
+        provider_snapshot
+            .parse::<toml_edit::DocumentMut>()
+            .map_err(|e| AppError::Message(format!("Invalid Codex provider snapshot: {e}")))?
+    };
+
+    // Step 1: drop any live entry the snapshot does not cover, so switching
+    // providers doesn't leak the previous provider's tables (e.g. [projects],
+    // [model_providers.OLD]) into the new live config. Exempt:
+    //   - `[mcp_servers]` — always lives in the live config and is user-owned
+    //     (including any comment-only lines around it).
+    //   - preference keys, but only when `preserve_user_preferences` is true.
+    let live_keys: Vec<String> = live.as_table().iter().map(|(k, _)| k.to_string()).collect();
+    for key in live_keys {
+        if key == "mcp_servers" {
+            continue;
+        }
+        if preserve_user_preferences && PREFERENCE_KEYS.contains(&key.as_str()) {
+            continue;
+        }
+        if snap.get(&key).is_some() {
+            continue;
+        }
+        live.as_table_mut().remove(&key);
+    }
+
+    // Step 2: overlay every snapshot entry except [mcp_servers]. For preference
+    // keys: when `preserve_user_preferences` is true and live already has the
+    // key, live wins; otherwise the snapshot's value is used (this is what
+    // seeds an initial write from snapshot, including merged common-snippet
+    // defaults).
+    let snap_keys: Vec<String> = snap.as_table().iter().map(|(k, _)| k.to_string()).collect();
+    for key in snap_keys {
+        if key == "mcp_servers" {
+            continue;
+        }
+        if preserve_user_preferences
+            && PREFERENCE_KEYS.contains(&key.as_str())
+            && live.get(&key).is_some()
+        {
+            continue;
+        }
+        if let Some(val) = snap.get(&key) {
+            live[key.as_str()] = val.clone();
+        }
+    }
+
+    Ok(live.to_string())
+}
+
 /// Rewrite a stored Codex provider snapshot to use a specific provider key.
 ///
 /// This updates both the root `model_provider` and the matching
@@ -591,6 +693,203 @@ pub fn clean_codex_provider_key(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn merge_preserves_user_preferences_and_mcp_from_live() {
+        // Current live config has user preferences and MCP servers
+        let live = indoc::indoc! {r#"
+            model_provider = "old-provider"
+            model = "old-model"
+            disable_response_storage = true
+            model_reasoning_effort = "xhigh"
+            approval_mode = "auto-edit"
+            check_for_update_on_startup = false
+
+            [model_providers.old-provider]
+            name = "Old"
+
+            [projects."/tmp/work"]
+            trusted = true
+
+            [mcp_servers.cargo-mcp]
+            type = "stdio"
+        "#};
+
+        // Snapshot has different provider and its own [projects], no [mcp_servers]
+        let snapshot = indoc::indoc! {r#"
+            model_provider = "new-provider"
+            model = "new-model"
+            approval_mode = "suggest"
+
+            [model_providers.new-provider]
+            name = "New"
+            api_key = "sk-test"
+
+            [projects."/tmp/other"]
+            trusted = true
+        "#};
+
+        let merged = merge_provider_into_codex_live_config(live, snapshot, true).unwrap();
+        let doc: toml_edit::DocumentMut = merged.parse().unwrap();
+
+        // Provider fields come from snapshot
+        assert_eq!(doc["model_provider"].as_str(), Some("new-provider"));
+        assert_eq!(doc["model"].as_str(), Some("new-model"));
+        assert!(doc
+            .get("model_providers")
+            .unwrap()
+            .get("new-provider")
+            .is_some());
+        assert!(doc
+            .get("model_providers")
+            .unwrap()
+            .get("old-provider")
+            .is_none());
+
+        // User preferences come from live (not snapshot's approval_mode)
+        assert_eq!(doc["disable_response_storage"].as_bool(), Some(true));
+        assert_eq!(doc["model_reasoning_effort"].as_str(), Some("xhigh"));
+        assert_eq!(doc["approval_mode"].as_str(), Some("auto-edit"));
+        assert_eq!(doc["check_for_update_on_startup"].as_bool(), Some(false));
+
+        // [projects] comes from snapshot (provider isolation)
+        assert!(doc.get("projects").unwrap().get("/tmp/other").is_some());
+        assert!(doc.get("projects").unwrap().get("/tmp/work").is_none());
+
+        // [mcp_servers] comes from live (preserves comments and manual edits)
+        assert!(doc.get("mcp_servers").is_some());
+        assert!(doc.get("mcp_servers").unwrap().get("cargo-mcp").is_some());
+    }
+
+    #[test]
+    fn merge_keeps_commented_out_mcp_entries_verbatim() {
+        // The user has temporarily disabled an MCP server by commenting out
+        // its whole subtable. Switching providers must NOT uncomment these
+        // lines or drop them. Also exercises a comment-only line before an
+        // active subtable, and a trailing comment after a value.
+        let live = "\
+model_provider = \"old\"
+approval_mode = \"suggest\"
+
+# top-level note for mcp_servers section
+[mcp_servers.active]
+# comment before command
+command = \"runme\" # trailing comment
+
+# this one is temporarily disabled
+# [mcp_servers.disabled]
+# command = \"nope\"
+# args = [\"--off\"]
+";
+
+        let snapshot = "\
+model_provider = \"new\"
+
+[model_providers.new]
+name = \"New\"
+";
+
+        let merged = merge_provider_into_codex_live_config(live, snapshot, true).unwrap();
+
+        // Every comment line from the live mcp_servers region must survive verbatim.
+        for needle in [
+            "# top-level note for mcp_servers section",
+            "# comment before command",
+            "# trailing comment",
+            "# this one is temporarily disabled",
+            "# [mcp_servers.disabled]",
+            "# command = \"nope\"",
+            "# args = [\"--off\"]",
+        ] {
+            assert!(
+                merged.contains(needle),
+                "merged output is missing comment line: {needle:?}\n--- merged ---\n{merged}"
+            );
+        }
+
+        // And the structural parts still parse and resolve as expected.
+        let doc: toml_edit::DocumentMut = merged.parse().unwrap();
+        assert_eq!(doc["model_provider"].as_str(), Some("new"));
+        assert!(doc
+            .get("mcp_servers")
+            .and_then(|t| t.get("active"))
+            .is_some());
+        assert!(doc
+            .get("mcp_servers")
+            .and_then(|t| t.get("disabled"))
+            .is_none());
+    }
+
+    #[test]
+    fn merge_seeds_preferences_from_snapshot_when_live_is_empty() {
+        // Initial write path: live config doesn't exist yet, snapshot carries
+        // merged common-snippet defaults like disable_response_storage.
+        // With preserve_user_preferences=true, the snapshot's preferences must
+        // still land in the resulting file — otherwise the common snippet is lost.
+        let snapshot = indoc::indoc! {r#"
+            model_provider = "first"
+            model = "gpt-5.2-codex"
+            disable_response_storage = true
+            approval_mode = "suggest"
+
+            [model_providers.first]
+            base_url = "https://api.example/v1"
+        "#};
+
+        let merged = merge_provider_into_codex_live_config("", snapshot, true).unwrap();
+        assert!(
+            merged.contains("disable_response_storage = true"),
+            "snapshot-provided preference should seed an empty live config\n--- merged ---\n{merged}"
+        );
+        assert!(merged.contains("approval_mode = \"suggest\""));
+        assert!(merged.contains("model_provider = \"first\""));
+    }
+
+    #[test]
+    fn merge_with_preserve_false_drops_live_prefs_missing_from_snapshot() {
+        // Common-snippet "clear" path: snapshot has no preference keys, so live
+        // preferences left behind by a previous snippet must be removed.
+        let live = indoc::indoc! {r#"
+            model_provider = "p1"
+            disable_response_storage = true
+            model_reasoning_effort = "xhigh"
+
+            [model_providers.p1]
+            base_url = "https://a"
+        "#};
+
+        let snapshot = indoc::indoc! {r#"
+            model_provider = "p1"
+
+            [model_providers.p1]
+            base_url = "https://a"
+        "#};
+
+        let merged = merge_provider_into_codex_live_config(live, snapshot, false).unwrap();
+        let doc: toml_edit::DocumentMut = merged.parse().unwrap();
+        assert!(doc.get("disable_response_storage").is_none());
+        assert!(doc.get("model_reasoning_effort").is_none());
+        assert_eq!(doc["model_provider"].as_str(), Some("p1"));
+    }
+
+    #[test]
+    fn merge_omits_mcp_section_when_live_has_none() {
+        let live = indoc::indoc! {r#"
+            model_provider = "foo"
+            approval_mode = "suggest"
+        "#};
+
+        let snapshot = indoc::indoc! {r#"
+            model_provider = "bar"
+        "#};
+
+        let merged = merge_provider_into_codex_live_config(live, snapshot, true).unwrap();
+        let doc: toml_edit::DocumentMut = merged.parse().unwrap();
+
+        assert_eq!(doc["model_provider"].as_str(), Some("bar"));
+        assert!(doc.get("mcp_servers").is_none());
+        assert_eq!(doc["approval_mode"].as_str(), Some("suggest"));
+    }
     use crate::app_config::AppType;
     use crate::test_support::{lock_test_home_and_settings, set_test_home_override};
     use std::ffi::OsString;
