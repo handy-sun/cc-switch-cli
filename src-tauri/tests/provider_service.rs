@@ -106,6 +106,46 @@ fn insert_codex_managed_mcp(config: &mut MultiAppConfig) {
     );
 }
 
+fn seed_codex_live_changed_mcp(home: &std::path::Path) {
+    let codex_dir = home.join(".codex");
+    std::fs::create_dir_all(&codex_dir).expect("create codex dir");
+    std::fs::write(
+        codex_dir.join("config.toml"),
+        r#"[mcp_servers.changed]
+type = "stdio"
+command = "live-command"
+"#,
+    )
+    .expect("seed codex config");
+}
+
+fn insert_codex_db_changed_mcp(config: &mut MultiAppConfig) {
+    config.mcp.servers = Some(HashMap::new());
+    config.mcp.servers.as_mut().unwrap().insert(
+        "changed".to_string(),
+        McpServer {
+            id: "changed".to_string(),
+            name: "Changed".to_string(),
+            server: json!({
+                "type": "stdio",
+                "command": "db-command"
+            }),
+            apps: McpApps {
+                claude: false,
+                codex: true,
+                gemini: false,
+                opencode: false,
+                openclaw: false,
+                hermes: false,
+            },
+            description: None,
+            homepage: None,
+            docs: None,
+            tags: Vec::new(),
+        },
+    );
+}
+
 #[test]
 fn provider_service_switch_codex_updates_live_and_config() {
     let _guard = lock_test_mutex();
@@ -425,6 +465,91 @@ command = "external-tool"
         command,
         Some("external-tool"),
         "Codex provider switch should not resync managed MCP over live edits"
+    );
+}
+
+#[test]
+fn provider_service_sync_current_to_live_preserves_codex_live_mcp_drift() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    seed_codex_live_changed_mcp(home);
+    insert_codex_db_changed_mcp(&mut config);
+    let state = state_from_config(config);
+
+    ProviderService::sync_current_to_live(&state).expect("sync current to live");
+
+    let config_text =
+        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+    let live: toml::Value = toml::from_str(&config_text).expect("parse live config.toml");
+    let command = live
+        .get("mcp_servers")
+        .and_then(|servers| servers.get("changed"))
+        .and_then(|server| server.get("command"))
+        .and_then(|value| value.as_str());
+    assert_eq!(
+        command,
+        Some("live-command"),
+        "sync_current_to_live should not overwrite Codex live MCP drift"
+    );
+}
+
+#[test]
+fn provider_service_switch_non_codex_provider_preserves_codex_live_mcp_drift() {
+    let _guard = lock_test_mutex();
+    reset_test_fs();
+    let home = ensure_test_home();
+
+    let mut config = MultiAppConfig::default();
+    seed_codex_live_changed_mcp(home);
+    {
+        let manager = config
+            .get_manager_mut(&AppType::Claude)
+            .expect("claude manager");
+        manager.current = "old-provider".to_string();
+        manager.providers.insert(
+            "old-provider".to_string(),
+            Provider::with_id(
+                "old-provider".to_string(),
+                "Old Claude".to_string(),
+                json!({
+                    "env": { "ANTHROPIC_API_KEY": "old-key" }
+                }),
+                None,
+            ),
+        );
+        manager.providers.insert(
+            "new-provider".to_string(),
+            Provider::with_id(
+                "new-provider".to_string(),
+                "New Claude".to_string(),
+                json!({
+                    "env": { "ANTHROPIC_API_KEY": "new-key" }
+                }),
+                None,
+            ),
+        );
+    }
+    insert_codex_db_changed_mcp(&mut config);
+    let state = state_from_config(config);
+
+    ProviderService::switch(&state, AppType::Claude, "new-provider")
+        .expect("switch Claude provider");
+
+    let config_text =
+        std::fs::read_to_string(cc_switch_lib::get_codex_config_path()).expect("read config.toml");
+    let live: toml::Value = toml::from_str(&config_text).expect("parse live config.toml");
+    let command = live
+        .get("mcp_servers")
+        .and_then(|servers| servers.get("changed"))
+        .and_then(|server| server.get("command"))
+        .and_then(|value| value.as_str());
+    assert_eq!(
+        command,
+        Some("live-command"),
+        "switching another provider should not overwrite Codex live MCP drift"
     );
 }
 

@@ -365,9 +365,21 @@ impl McpService {
 
     /// 手动同步所有启用的 MCP 服务器到对应的应用
     pub fn sync_all_enabled(state: &AppState) -> Result<(), AppError> {
+        Self::sync_all_enabled_except(state, &[])
+    }
+
+    /// 同步所有启用的 MCP 服务器到对应应用，但跳过指定应用。
+    pub fn sync_all_enabled_except(
+        state: &AppState,
+        excluded_apps: &[AppType],
+    ) -> Result<(), AppError> {
         let servers = Self::get_all_servers(state)?;
 
         for app in AppType::all() {
+            if excluded_apps.contains(&app) {
+                continue;
+            }
+
             for server in servers.values() {
                 if server.apps.is_enabled_for(&app) {
                     Self::sync_server_to_app(state, server, &app)?;

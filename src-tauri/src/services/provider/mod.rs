@@ -420,9 +420,10 @@ impl ProviderService {
             }
         }
         if action.sync_mcp {
-            // 使用 v3.7.0 统一的 MCP 同步机制，支持所有应用
+            // Provider/config side effects must not erase Codex live drift;
+            // Codex MCP changes are handled by explicit resolve/sync actions.
             use crate::services::mcp::McpService;
-            McpService::sync_all_enabled(state)?;
+            McpService::sync_all_enabled_except(state, &[AppType::Codex])?;
         }
         if !action.takeover_active
             && action.refresh_snapshot
@@ -1791,8 +1792,8 @@ impl ProviderService {
             log::warn!("sync_current_to_live: Prompt 同步失败: {e}");
         }
 
-        if let Err(e) = McpService::sync_all_enabled(state) {
-            log::warn!("sync_current_to_live: MCP 同步失败: {e}");
+        if let Err(e) = McpService::sync_all_enabled_except(state, &[AppType::Codex]) {
+            log::warn!("sync_current_to_live: 非 Codex MCP 同步失败: {e}");
         }
 
         if let Err(e) = crate::services::skill::SkillService::sync_all_enabled_best_effort() {
