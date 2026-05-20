@@ -100,6 +100,15 @@ impl CodexImportReport {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CodexCurrentProviderMismatch {
+    pub(crate) stored_provider_id: String,
+    pub(crate) stored_provider_name: String,
+    pub(crate) live_provider_id: String,
+    pub(crate) live_provider_name: String,
+    pub(crate) live_model_provider_key: String,
+}
+
 impl ProviderService {
     fn is_codex_official_provider(provider: &Provider) -> bool {
         provider
@@ -1839,6 +1848,10 @@ impl ProviderService {
         let provider_id_owned = provider_id.to_string();
         let effective_current_provider = if app_type.is_additive_mode() {
             None
+        } else if matches!(app_type, AppType::Codex) {
+            Self::codex_live_current_provider_id(state)?.or(
+                crate::settings::get_effective_current_provider(&state.db, &app_type)?,
+            )
         } else {
             crate::settings::get_effective_current_provider(&state.db, &app_type)?
         };
@@ -1910,7 +1923,10 @@ impl ProviderService {
                 provider,
                 backup,
                 write_live_snapshot: true,
-                sync_mcp: true, // v3.7.0: 所有应用切换时都同步 MCP，防止配置丢失
+                // Codex writes provider config through a TOML merge that preserves
+                // [mcp_servers]. A global MCP resync here would overwrite live
+                // edits with cc-switch's stored MCP snapshot.
+                sync_mcp: !matches!(app_type_clone, AppType::Codex),
                 sync_codex_catalog: matches!(app_type_clone, AppType::Codex),
                 stale_codex_catalog_keys: Vec::new(),
                 refresh_snapshot: true,

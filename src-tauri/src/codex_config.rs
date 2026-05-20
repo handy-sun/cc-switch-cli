@@ -379,12 +379,12 @@ fn rewrite_codex_profile_model_provider_refs(
     }
 }
 
-/// Keep Codex's active `model_provider` stable across CC Switch provider changes.
+/// Rewrite a Codex snapshot to reuse an existing live custom `model_provider`.
 ///
-/// Codex stores and filters resume history by `model_provider`, so switching between
-/// provider-specific ids like `rightcode` and `aihubmix` makes history appear to move.
-/// We preserve an existing custom provider id when possible and only rewrite the
-/// live config text that Codex sees at provider-driven write boundaries.
+/// This is intentionally **not** used for normal provider switches: the live
+/// `config.toml` should show the selected provider id. It remains useful for
+/// proxy takeover backup/restore flows that explicitly want a history-stable
+/// Codex `model_provider` alias.
 pub fn normalize_codex_settings_config_model_provider(
     settings: &mut Value,
     anchor_config_text: Option<&str>,
@@ -525,8 +525,10 @@ pub fn restore_codex_settings_config_model_provider_for_backfill(
 /// Currently provider-scoped:
 /// - `model_provider` — pointer to the active `[model_providers.X]` entry.
 /// - `model` — currently-selected model name, conventionally per-provider.
+/// - `profile` — selected profile name, paired with `[profiles]`.
 /// - `model_providers` — provider definitions; replaced wholesale per snapshot.
 /// - `projects` — per-provider runtime trust list.
+/// - `profiles` — may point at provider-specific `model_provider` keys.
 pub fn merge_provider_into_codex_live_config(
     live_text: &str,
     provider_snapshot: &str,
@@ -536,8 +538,14 @@ pub fn merge_provider_into_codex_live_config(
     /// snapshot. Anything not listed here is treated as user-owned and follows
     /// the `preserve_user_preferences` rules above, so adding a new preference
     /// key in Codex does NOT require code changes here.
-    const PROVIDER_SCOPED_KEYS: &[&str] =
-        &["model_provider", "model", "model_providers", "projects"];
+    const PROVIDER_SCOPED_KEYS: &[&str] = &[
+        "model_provider",
+        "model",
+        "profile",
+        "model_providers",
+        "projects",
+        "profiles",
+    ];
 
     let mut live = if live_text.trim().is_empty() {
         toml_edit::DocumentMut::new()
@@ -647,37 +655,6 @@ pub fn rewrite_codex_config_model_provider_key(
     doc["model_provider"] = toml_edit::value(target_provider_id.as_str());
 
     Ok(doc.to_string())
-}
-
-/// Atomically write Codex live config after normalizing provider-specific ids.
-///
-/// Use this for provider-driven live writes. Keep `write_codex_live_atomic` available
-/// for exact restore/backup paths that must preserve the config text semantically as saved.
-pub fn write_codex_live_atomic_with_stable_provider(
-    auth: &Value,
-    config_text_opt: Option<&str>,
-) -> Result<(), AppError> {
-    write_codex_live_atomic_optional_auth_with_stable_provider(Some(auth), config_text_opt)
-}
-
-pub fn write_codex_live_atomic_optional_auth_with_stable_provider(
-    auth: Option<&Value>,
-    config_text_opt: Option<&str>,
-) -> Result<(), AppError> {
-    match config_text_opt {
-        Some(config_text) => {
-            let mut settings = serde_json::Map::new();
-            settings.insert("config".to_string(), Value::String(config_text.to_string()));
-            let mut settings = Value::Object(settings);
-            normalize_codex_settings_config_model_provider(&mut settings, None)?;
-            let config_text = settings
-                .get("config")
-                .and_then(|value| value.as_str())
-                .unwrap_or(config_text);
-            write_codex_live_atomic_optional_auth(auth, Some(config_text))
-        }
-        None => write_codex_live_atomic_optional_auth(auth, None),
-    }
 }
 
 /// Generate a clean TOML key from a raw string for use as `model_provider` and `[model_providers.<key>]`.
