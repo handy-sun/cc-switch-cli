@@ -21,7 +21,7 @@ use super::{
     app::{
         App, ConfigItem, ConfirmAction, Focus, LoadingKind, Overlay, ToastKind, WebDavConfigItem,
     },
-    data::{McpRow, ProviderRow, UiData},
+    data::{McpDisplayRow, ProviderRow, UiData},
     form::{
         CodexPreviewSection, FormFocus, FormState, GeminiAuthType, McpAddField, ProviderAddField,
     },

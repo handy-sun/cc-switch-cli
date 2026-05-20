@@ -12,7 +12,7 @@ mod tests {
     use tempfile::TempDir;
 
     use crate::cli::i18n::{texts, use_test_language, Language};
-    use crate::cli::tui::data::ProviderRow;
+    use crate::cli::tui::data::{McpLiveOnlyRow, ProviderRow};
     use crate::cli::tui::form::{McpEnvVarRow, McpTransport, TextInput};
     use crate::cli::tui::runtime_actions::handle_action;
     use crate::cli::tui::runtime_systems::RequestTracker;
@@ -21,7 +21,7 @@ mod tests {
     use crate::error::AppError;
     use crate::prompt::Prompt;
     use crate::provider::Provider;
-    use crate::services::PromptService;
+    use crate::services::{McpLiveDriftEntry, McpLiveDriftKind, PromptService};
     use crate::settings::{get_settings, update_settings, AppSettings};
     use crate::test_support::{
         lock_test_home_and_settings, set_test_home_override, TestHomeSettingsLock,
@@ -2307,6 +2307,110 @@ mod tests {
                 selected: 1,
                 ..
             } if id == "m1" && name == "Server"
+        ));
+    }
+
+    #[test]
+    fn mcp_r_opens_resolve_overlay_for_changed_db_row() {
+        let mut app = App::new(Some(AppType::Codex));
+        app.route = Route::Mcp;
+        app.focus = Focus::Content;
+
+        let mut data = UiData::default();
+        data.mcp.rows.push(super::super::data::McpRow {
+            id: "m1".to_string(),
+            server: crate::app_config::McpServer {
+                id: "m1".to_string(),
+                name: "Server".to_string(),
+                server: json!({"command":"db"}),
+                apps: crate::app_config::McpApps {
+                    codex: true,
+                    ..crate::app_config::McpApps::default()
+                },
+                description: None,
+                homepage: None,
+                docs: None,
+                tags: vec![],
+            },
+        });
+        data.mcp.drift_by_id.insert(
+            "m1".to_string(),
+            McpLiveDriftEntry {
+                app: AppType::Codex,
+                id: "m1".to_string(),
+                kind: McpLiveDriftKind::Changed,
+                db_spec: Some(json!({"command":"db"})),
+                live_spec: Some(json!({"command":"live"})),
+                message: None,
+            },
+        );
+
+        let action = app.on_key(key(KeyCode::Char('r')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            &app.overlay,
+            Overlay::McpLiveDriftResolve {
+                app_type,
+                id,
+                kind: McpLiveDriftKind::Changed,
+                selected: 0,
+            } if *app_type == AppType::Codex && id == "m1"
+        ));
+    }
+
+    #[test]
+    fn mcp_r_on_live_only_row_opens_import_only_resolve_overlay() {
+        let mut app = App::new(Some(AppType::Codex));
+        app.route = Route::Mcp;
+        app.focus = Focus::Content;
+
+        let mut data = UiData::default();
+        data.mcp.live_only.push(McpLiveOnlyRow {
+            id: "live-only".to_string(),
+            app: AppType::Codex,
+            live_spec: json!({"type":"http","url":"https://live.example.com/mcp"}),
+        });
+
+        let action = app.on_key(key(KeyCode::Char('r')), &data);
+
+        assert!(matches!(action, Action::None));
+        assert!(matches!(
+            &app.overlay,
+            Overlay::McpLiveDriftResolve {
+                app_type,
+                id,
+                kind: McpLiveDriftKind::LiveOnly,
+                selected: 0,
+            } if *app_type == AppType::Codex && id == "live-only"
+        ));
+
+        let action = app.on_key(key(KeyCode::Enter), &data);
+        assert!(matches!(
+            action,
+            Action::McpImportLive { app_type, id }
+                if app_type == AppType::Codex && id == "live-only"
+        ));
+    }
+
+    #[test]
+    fn mcp_resolve_overlay_can_choose_push_db_to_live() {
+        let mut app = App::new(Some(AppType::Codex));
+        app.overlay = Overlay::McpLiveDriftResolve {
+            app_type: AppType::Codex,
+            id: "m1".to_string(),
+            kind: McpLiveDriftKind::Changed,
+            selected: 0,
+        };
+
+        let action = app.on_key(key(KeyCode::Down), &UiData::default());
+        assert!(matches!(action, Action::None));
+
+        let action = app.on_key(key(KeyCode::Enter), &UiData::default());
+        assert!(matches!(
+            action,
+            Action::McpPushDbToLive { app_type, id }
+                if app_type == AppType::Codex && id == "m1"
         ));
     }
 

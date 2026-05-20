@@ -33,6 +33,9 @@ impl App {
         if let Some(action) = self.handle_mcp_apps_picker_key(key, data) {
             return Some(action);
         }
+        if let Some(action) = self.handle_mcp_live_drift_resolve_key(key) {
+            return Some(action);
+        }
         if let Some(action) = self.handle_visible_apps_picker_key(key) {
             return Some(action);
         }
@@ -560,6 +563,51 @@ impl App {
                     Action::None
                 } else {
                     Action::McpSetApps { id, apps: next }
+                }
+            }
+            _ => Action::None,
+        })
+    }
+
+    fn handle_mcp_live_drift_resolve_key(&mut self, key: KeyEvent) -> Option<Action> {
+        let Overlay::McpLiveDriftResolve {
+            app_type,
+            id,
+            kind,
+            selected,
+        } = &mut self.overlay
+        else {
+            return None;
+        };
+
+        let choices = mcp_live_drift_resolve_choices(kind);
+        let max_selected = choices.len().saturating_sub(1);
+        *selected = (*selected).min(max_selected);
+
+        Some(match key.code {
+            KeyCode::Esc => {
+                self.overlay = Overlay::None;
+                Action::None
+            }
+            KeyCode::Up => {
+                *selected = selected.saturating_sub(1);
+                Action::None
+            }
+            KeyCode::Down => {
+                *selected = (*selected + 1).min(max_selected);
+                Action::None
+            }
+            KeyCode::Enter => {
+                let choice = choices[*selected];
+                let app_type = app_type.clone();
+                let id = id.clone();
+                self.overlay = Overlay::None;
+                match choice {
+                    McpLiveDriftResolveChoice::ImportLive => Action::McpImportLive { app_type, id },
+                    McpLiveDriftResolveChoice::PushDbToLive => {
+                        Action::McpPushDbToLive { app_type, id }
+                    }
+                    McpLiveDriftResolveChoice::Cancel => Action::None,
                 }
             }
             _ => Action::None,

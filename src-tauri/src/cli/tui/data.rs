@@ -14,7 +14,10 @@ use crate::prompt::Prompt;
 use crate::provider::Provider;
 use crate::services::config::BackupInfo;
 use crate::services::SubscriptionQuota;
-use crate::services::{ConfigService, McpService, PromptService, ProviderService, SkillService};
+use crate::services::{
+    ConfigService, McpLiveDriftEntry, McpLiveDriftKind, McpService, PromptService, ProviderService,
+    SkillService,
+};
 use crate::store::AppState;
 
 #[derive(Debug, Clone)]
@@ -164,6 +167,120 @@ pub struct McpRow {
 #[derive(Debug, Clone, Default)]
 pub struct McpSnapshot {
     pub rows: Vec<McpRow>,
+    pub drift_by_id: HashMap<String, McpLiveDriftEntry>,
+    pub live_only: Vec<McpLiveOnlyRow>,
+    pub live_warning: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct McpLiveOnlyRow {
+    pub id: String,
+    pub app: AppType,
+    pub live_spec: Value,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum McpDisplayRow<'a> {
+    Db(&'a McpRow),
+    LiveOnly(&'a McpLiveOnlyRow),
+}
+
+impl<'a> McpDisplayRow<'a> {
+    pub fn id(&self) -> &'a str {
+        match self {
+            Self::Db(row) => &row.id,
+            Self::LiveOnly(row) => &row.id,
+        }
+    }
+
+    pub fn name(&self) -> &'a str {
+        match self {
+            Self::Db(row) => &row.server.name,
+            Self::LiveOnly(row) => &row.id,
+        }
+    }
+
+    pub fn db_row(&self) -> Option<&'a McpRow> {
+        match self {
+            Self::Db(row) => Some(row),
+            Self::LiveOnly(_) => None,
+        }
+    }
+
+    pub fn app_enabled(&self, app_type: &AppType) -> bool {
+        match self {
+            Self::Db(row) => row.server.apps.is_enabled_for(app_type),
+            Self::LiveOnly(row) => &row.app == app_type,
+        }
+    }
+
+    pub fn live_spec_summary(&self) -> Option<String> {
+        let Self::LiveOnly(row) = self else {
+            return None;
+        };
+
+        if let Some(url) = row.live_spec.get("url").and_then(Value::as_str) {
+            return Some(format!("({url})"));
+        }
+
+        if let Some(command) = row.live_spec.get("command").and_then(Value::as_str) {
+            return Some(format!("({command})"));
+        }
+
+        row.live_spec
+            .get("type")
+            .and_then(Value::as_str)
+            .map(|server_type| format!("({server_type})"))
+    }
+
+    pub fn drift_kind(&self, snapshot: &'a McpSnapshot) -> Option<&'a McpLiveDriftKind> {
+        match self {
+            Self::Db(row) => snapshot.drift_by_id.get(&row.id).map(|entry| &entry.kind),
+            Self::LiveOnly(_) => Some(&McpLiveDriftKind::LiveOnly),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct McpLiveDriftCounts {
+    pub changed: usize,
+    pub live_only: usize,
+    pub db_only: usize,
+    pub invalid: usize,
+}
+
+impl McpLiveDriftCounts {
+    pub fn has_drift(&self) -> bool {
+        self.changed > 0 || self.live_only > 0 || self.db_only > 0 || self.invalid > 0
+    }
+}
+
+impl McpSnapshot {
+    pub fn display_rows(&self) -> Vec<McpDisplayRow<'_>> {
+        self.rows
+            .iter()
+            .map(McpDisplayRow::Db)
+            .chain(self.live_only.iter().map(McpDisplayRow::LiveOnly))
+            .collect()
+    }
+
+    pub fn live_drift_counts(&self) -> McpLiveDriftCounts {
+        let mut counts = McpLiveDriftCounts {
+            live_only: self.live_only.len(),
+            invalid: usize::from(self.live_warning.is_some()),
+            ..McpLiveDriftCounts::default()
+        };
+
+        for entry in self.drift_by_id.values() {
+            match entry.kind {
+                McpLiveDriftKind::Changed => counts.changed += 1,
+                McpLiveDriftKind::DbOnly => counts.db_only += 1,
+                _ => {}
+            }
+        }
+
+        counts
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -283,7 +400,7 @@ impl UiData {
         let state = load_state()?;
 
         let providers = load_providers(&state, app_type)?;
-        let mcp = load_mcp(&state)?;
+        let mcp = load_mcp(&state, app_type)?;
         let prompts = load_prompts(&state, app_type)?;
         let config = load_config_snapshot(&state, app_type)?;
         let skills = load_skills_snapshot()?;
@@ -729,7 +846,7 @@ fn openclaw_default_model_ref_parts(default_ref: &str) -> Option<(&str, &str)> {
     default_ref.split_once('/')
 }
 
-fn load_mcp(state: &AppState) -> Result<McpSnapshot, AppError> {
+fn load_mcp(state: &AppState, app_type: &AppType) -> Result<McpSnapshot, AppError> {
     let servers = McpService::get_all_servers(state)?;
     let mut rows = servers
         .into_iter()
@@ -738,7 +855,47 @@ fn load_mcp(state: &AppState) -> Result<McpSnapshot, AppError> {
 
     rows.sort_by(|a, b| a.id.cmp(&b.id));
 
-    Ok(McpSnapshot { rows })
+    if !matches!(app_type, AppType::Codex) {
+        return Ok(McpSnapshot {
+            rows,
+            ..McpSnapshot::default()
+        });
+    }
+
+    let report = McpService::get_live_drift(state, app_type.clone())?;
+    let mut drift_by_id = HashMap::new();
+    let mut live_only = Vec::new();
+    let mut live_warning = None;
+
+    for entry in report.entries {
+        match entry.kind {
+            McpLiveDriftKind::LiveOnly => {
+                if let Some(live_spec) = entry.live_spec.clone() {
+                    live_only.push(McpLiveOnlyRow {
+                        id: entry.id,
+                        app: entry.app,
+                        live_spec,
+                    });
+                }
+            }
+            McpLiveDriftKind::LiveInvalid => {
+                live_warning = entry.message;
+            }
+            McpLiveDriftKind::Unknown => {}
+            _ => {
+                drift_by_id.insert(entry.id.clone(), entry);
+            }
+        }
+    }
+
+    live_only.sort_by(|a, b| a.id.cmp(&b.id));
+
+    Ok(McpSnapshot {
+        rows,
+        drift_by_id,
+        live_only,
+        live_warning,
+    })
 }
 
 fn load_prompts(state: &AppState, app_type: &AppType) -> Result<PromptsSnapshot, AppError> {
@@ -2494,6 +2651,127 @@ mod tests {
         assert_eq!(
             provider_display_name(&AppType::Claude, &row),
             "Saved Snapshot Name"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn load_mcp_includes_codex_live_drift_and_live_only_rows() {
+        let _guard = lock_test_home_and_settings();
+        let temp = tempdir().expect("create tempdir");
+        let _home = HomeGuard::set(temp.path());
+
+        let codex_dir = temp.path().join(".codex");
+        std::fs::create_dir_all(&codex_dir).expect("create codex dir");
+        std::fs::write(
+            codex_dir.join("config.toml"),
+            r#"[mcp_servers.changed]
+type = "stdio"
+command = "live-command"
+
+[mcp_servers.live_only]
+type = "http"
+url = "https://live.example.com/mcp"
+"#,
+        )
+        .expect("write codex config");
+
+        let state = load_state().expect("load state");
+        {
+            let mut cfg = state.config.write().expect("lock config");
+            cfg.mcp.servers = Some(HashMap::from([(
+                "changed".to_string(),
+                McpServer {
+                    id: "changed".to_string(),
+                    name: "Changed".to_string(),
+                    server: json!({
+                        "type": "stdio",
+                        "command": "db-command"
+                    }),
+                    apps: crate::app_config::McpApps {
+                        claude: false,
+                        codex: true,
+                        gemini: false,
+                        opencode: false,
+                        openclaw: false,
+                        hermes: false,
+                    },
+                    description: None,
+                    homepage: None,
+                    docs: None,
+                    tags: Vec::new(),
+                },
+            )]));
+        }
+
+        let snapshot = load_mcp(&state, &AppType::Codex).expect("load MCP snapshot");
+
+        assert_eq!(snapshot.rows.len(), 1);
+        assert_eq!(
+            snapshot
+                .drift_by_id
+                .get("changed")
+                .expect("changed drift")
+                .kind,
+            crate::services::McpLiveDriftKind::Changed
+        );
+        assert_eq!(snapshot.live_only.len(), 1);
+        assert_eq!(snapshot.live_only[0].id, "live_only");
+        assert_eq!(
+            snapshot.live_only[0].live_spec["url"],
+            "https://live.example.com/mcp"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn load_mcp_keeps_db_rows_when_codex_live_config_is_invalid() {
+        let _guard = lock_test_home_and_settings();
+        let temp = tempdir().expect("create tempdir");
+        let _home = HomeGuard::set(temp.path());
+
+        let codex_dir = temp.path().join(".codex");
+        std::fs::create_dir_all(&codex_dir).expect("create codex dir");
+        std::fs::write(codex_dir.join("config.toml"), "model_provider = [")
+            .expect("write invalid codex config");
+
+        let state = load_state().expect("load state");
+        {
+            let mut cfg = state.config.write().expect("lock config");
+            cfg.mcp.servers = Some(HashMap::from([(
+                "db_server".to_string(),
+                McpServer {
+                    id: "db_server".to_string(),
+                    name: "DB Server".to_string(),
+                    server: json!({
+                        "type": "stdio",
+                        "command": "db-command"
+                    }),
+                    apps: crate::app_config::McpApps {
+                        claude: false,
+                        codex: true,
+                        gemini: false,
+                        opencode: false,
+                        openclaw: false,
+                        hermes: false,
+                    },
+                    description: None,
+                    homepage: None,
+                    docs: None,
+                    tags: Vec::new(),
+                },
+            )]));
+        }
+
+        let snapshot = load_mcp(&state, &AppType::Codex).expect("load MCP snapshot");
+
+        assert_eq!(snapshot.rows.len(), 1);
+        assert_eq!(snapshot.rows[0].id, "db_server");
+        assert!(
+            snapshot.live_warning.as_deref().is_some_and(|message| {
+                message.contains("config.toml") || message.contains("TOML")
+            }),
+            "live parse warning should be retained"
         );
     }
 }

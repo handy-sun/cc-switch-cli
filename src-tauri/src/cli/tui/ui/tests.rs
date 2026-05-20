@@ -23,8 +23,8 @@ use crate::{
             Focus, Overlay, TextInputState, TextSubmit,
         },
         data::{
-            ConfigSnapshot, McpSnapshot, OpenClawWorkspaceSnapshot, PromptsSnapshot, ProviderRow,
-            ProvidersSnapshot, ProxySnapshot, SkillsSnapshot, UiData,
+            ConfigSnapshot, McpLiveOnlyRow, McpSnapshot, OpenClawWorkspaceSnapshot,
+            PromptsSnapshot, ProviderRow, ProvidersSnapshot, ProxySnapshot, SkillsSnapshot, UiData,
         },
         form::{FormFocus, ProviderAddField, TextInput},
         route::{NavItem, Route},
@@ -33,8 +33,11 @@ use crate::{
     commands::workspace::{DailyMemoryFileInfo, ALLOWED_FILES},
     openclaw_config::write_openclaw_config_source,
     provider::Provider,
-    services::local_env_check::{LocalTool, ToolCheckResult, ToolCheckStatus},
     services::skill::{InstalledSkill, SkillApps, SkillRepo, SyncMethod, UnmanagedSkill},
+    services::{
+        local_env_check::{LocalTool, ToolCheckResult, ToolCheckStatus},
+        McpLiveDriftEntry, McpLiveDriftKind,
+    },
     test_support::{lock_test_home_and_settings, set_test_home_override, TestHomeSettingsLock},
 };
 
@@ -2702,6 +2705,118 @@ fn mcp_page_uses_import_existing_label() {
     let all = all_text(&buf);
 
     assert!(all.contains(texts::tui_mcp_action_import_existing()));
+}
+
+#[test]
+fn mcp_page_shows_live_drift_markers_and_live_only_rows() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Codex));
+    app.route = Route::Mcp;
+    app.focus = Focus::Content;
+
+    let mut data = minimal_data(&app.app_type);
+    data.mcp.rows = vec![
+        super::super::data::McpRow {
+            id: "changed".to_string(),
+            server: crate::app_config::McpServer {
+                id: "changed".to_string(),
+                name: "Changed Server".to_string(),
+                server: json!({"command":"db"}),
+                apps: crate::app_config::McpApps {
+                    codex: true,
+                    ..crate::app_config::McpApps::default()
+                },
+                description: None,
+                homepage: None,
+                docs: None,
+                tags: vec![],
+            },
+        },
+        super::super::data::McpRow {
+            id: "db-only".to_string(),
+            server: crate::app_config::McpServer {
+                id: "db-only".to_string(),
+                name: "Missing Live".to_string(),
+                server: json!({"command":"db-only"}),
+                apps: crate::app_config::McpApps {
+                    codex: true,
+                    ..crate::app_config::McpApps::default()
+                },
+                description: None,
+                homepage: None,
+                docs: None,
+                tags: vec![],
+            },
+        },
+    ];
+    data.mcp.drift_by_id.insert(
+        "changed".to_string(),
+        McpLiveDriftEntry {
+            app: AppType::Codex,
+            id: "changed".to_string(),
+            kind: McpLiveDriftKind::Changed,
+            db_spec: Some(json!({"command":"db"})),
+            live_spec: Some(json!({"command":"live"})),
+            message: None,
+        },
+    );
+    data.mcp.drift_by_id.insert(
+        "db-only".to_string(),
+        McpLiveDriftEntry {
+            app: AppType::Codex,
+            id: "db-only".to_string(),
+            kind: McpLiveDriftKind::DbOnly,
+            db_spec: Some(json!({"command":"db-only"})),
+            live_spec: None,
+            message: None,
+        },
+    );
+    data.mcp.live_only.push(McpLiveOnlyRow {
+        id: "live-only".to_string(),
+        app: AppType::Codex,
+        live_spec: json!({"type":"http","url":"https://live.example.com/mcp"}),
+    });
+
+    let buf = render(&app, &data);
+    let content = content_text(&app, &buf);
+    let header = app_columns_header_line(&content);
+    let all = all_text(&buf);
+
+    assert!(header.contains("Live"), "{header}");
+    assert!(all.contains("Changed Server"), "{all}");
+    assert!(all.contains("live-only"), "{all}");
+    assert!(all.contains("~"), "{all}");
+    assert!(all.contains("+"), "{all}");
+    assert!(all.contains("-"), "{all}");
+    assert!(all.contains("Live drift"), "{all}");
+    assert!(all.contains("1 changed"), "{all}");
+    assert!(all.contains("1 live-only"), "{all}");
+}
+
+#[test]
+fn mcp_live_drift_resolve_overlay_renders_actions() {
+    let _lock = lock_env();
+    let _no_color = EnvGuard::remove("NO_COLOR");
+
+    let mut app = App::new(Some(AppType::Codex));
+    app.route = Route::Mcp;
+    app.focus = Focus::Content;
+    app.overlay = Overlay::McpLiveDriftResolve {
+        app_type: AppType::Codex,
+        id: "changed".to_string(),
+        kind: McpLiveDriftKind::Changed,
+        selected: 0,
+    };
+
+    let data = minimal_data(&app.app_type);
+    let all = all_text(&render(&app, &data));
+
+    assert!(all.contains("Resolve MCP Live Drift"), "{all}");
+    assert!(all.contains("changed"), "{all}");
+    assert!(all.contains("Import live into cc-switch"), "{all}");
+    assert!(all.contains("Push cc-switch to live"), "{all}");
 }
 
 #[test]

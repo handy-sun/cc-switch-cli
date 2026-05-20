@@ -117,6 +117,14 @@ pub enum Action {
         id: String,
     },
     McpImport,
+    McpImportLive {
+        app_type: AppType,
+        id: String,
+    },
+    McpPushDbToLive {
+        app_type: AppType,
+        id: String,
+    },
 
     PromptActivate {
         id: String,

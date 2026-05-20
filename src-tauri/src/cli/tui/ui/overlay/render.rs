@@ -148,6 +148,20 @@ pub(crate) fn render_overlay(
             *selected,
             apps,
         ),
+        Overlay::McpLiveDriftResolve {
+            app_type,
+            id,
+            kind,
+            selected,
+        } => super::pickers::render_mcp_live_drift_resolve_overlay(
+            frame,
+            content_area,
+            theme,
+            app_type,
+            id,
+            kind,
+            *selected,
+        ),
         Overlay::McpTypePicker { selected } => {
             super::pickers::render_mcp_type_picker_overlay(frame, content_area, theme, *selected)
         }

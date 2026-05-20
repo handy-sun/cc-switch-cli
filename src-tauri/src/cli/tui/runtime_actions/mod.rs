@@ -251,6 +251,8 @@ pub(crate) fn handle_action(
         Action::McpSetApps { id, apps } => mcp::set_apps(&mut ctx, id, apps),
         Action::McpDelete { id } => mcp::delete(&mut ctx, id),
         Action::McpImport => mcp::import_current_app(&mut ctx),
+        Action::McpImportLive { app_type, id } => mcp::import_live(&mut ctx, app_type, id),
+        Action::McpPushDbToLive { app_type, id } => mcp::push_db_to_live(&mut ctx, app_type, id),
         Action::PromptActivate { id } => prompts::activate(&mut ctx, id),
         Action::PromptDeactivate { id } => prompts::deactivate(&mut ctx, id),
         Action::PromptRename { id, name } => prompts::rename(&mut ctx, id, name),

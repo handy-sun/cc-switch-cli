@@ -786,6 +786,81 @@ pub(super) fn render_mcp_apps_picker_overlay(
     );
 }
 
+pub(super) fn render_mcp_live_drift_resolve_overlay(
+    frame: &mut Frame<'_>,
+    content_area: Rect,
+    theme: &theme::Theme,
+    app_type: &AppType,
+    id: &str,
+    kind: &crate::services::McpLiveDriftKind,
+    selected: usize,
+) {
+    let area = centered_rect_fixed(64, 12, content_area);
+    frame.render_widget(Clear, area);
+
+    let outer = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Plain)
+        .border_style(overlay_border_style(theme, true))
+        .title(texts::tui_mcp_live_drift_resolve_title());
+    frame.render_widget(outer.clone(), area);
+    let inner = outer.inner(area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Min(0),
+        ])
+        .split(inner);
+
+    render_key_bar_center(
+        frame,
+        chunks[0],
+        theme,
+        &[
+            ("↑↓", texts::tui_key_select()),
+            ("Enter", texts::tui_key_apply()),
+            ("Esc", texts::tui_key_cancel()),
+        ],
+    );
+
+    let message = format!(
+        "{}: {} · {}: {} · {}: {}",
+        crate::t!("App", "应用"),
+        app_type.as_str(),
+        crate::t!("Server", "服务器"),
+        id,
+        crate::t!("Status", "状态"),
+        texts::tui_mcp_live_drift_status(kind)
+    );
+    frame.render_widget(
+        Paragraph::new(message)
+            .wrap(Wrap { trim: false })
+            .style(Style::default().fg(theme.cyan)),
+        inset_top(chunks[1], 1),
+    );
+
+    let choices = app::mcp_live_drift_resolve_choices(kind);
+    let items = choices.iter().map(|choice| {
+        let label = match choice {
+            app::McpLiveDriftResolveChoice::ImportLive => texts::tui_mcp_live_drift_import_live(),
+            app::McpLiveDriftResolveChoice::PushDbToLive => texts::tui_mcp_live_drift_push_db(),
+            app::McpLiveDriftResolveChoice::Cancel => texts::tui_mcp_live_drift_cancel(),
+        };
+        ListItem::new(Line::raw(label))
+    });
+
+    let list = List::new(items)
+        .highlight_style(selection_style(theme))
+        .highlight_symbol(highlight_symbol(theme));
+
+    let mut state = ListState::default();
+    state.select(Some(selected.min(choices.len().saturating_sub(1))));
+    frame.render_stateful_widget(list, inset_top(chunks[2], 1), &mut state);
+}
+
 pub(super) fn render_mcp_type_picker_overlay(
     frame: &mut Frame<'_>,
     content_area: Rect,

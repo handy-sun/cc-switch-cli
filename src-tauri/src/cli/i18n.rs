@@ -2506,6 +2506,14 @@ pub mod texts {
         }
     }
 
+    pub fn tui_key_resolve() -> &'static str {
+        if is_chinese() {
+            "解决"
+        } else {
+            "resolve"
+        }
+    }
+
     pub fn tui_key_activate() -> &'static str {
         if is_chinese() {
             "激活"
@@ -3322,6 +3330,125 @@ pub mod texts {
             "导入已有"
         } else {
             "Import Existing"
+        }
+    }
+
+    pub fn tui_mcp_live_header() -> &'static str {
+        "Live"
+    }
+
+    pub fn tui_mcp_live_drift_summary(
+        changed: usize,
+        live_only: usize,
+        db_only: usize,
+        invalid: usize,
+    ) -> String {
+        let mut parts = Vec::new();
+        if changed > 0 {
+            parts.push(if is_chinese() {
+                format!("{changed} 已变更")
+            } else {
+                format!("{changed} changed")
+            });
+        }
+        if live_only > 0 {
+            parts.push(if is_chinese() {
+                format!("{live_only} 仅 live")
+            } else {
+                format!("{live_only} live-only")
+            });
+        }
+        if db_only > 0 {
+            parts.push(if is_chinese() {
+                format!("{db_only} 缺少 live")
+            } else {
+                format!("{db_only} db-only")
+            });
+        }
+        if invalid > 0 {
+            parts.push(if is_chinese() {
+                "live 配置无效".to_string()
+            } else {
+                "live invalid".to_string()
+            });
+        }
+
+        if is_chinese() {
+            format!("Live 漂移：{}", parts.join("、"))
+        } else {
+            format!("Live drift: {}", parts.join(", "))
+        }
+    }
+
+    pub fn tui_mcp_live_drift_resolve_title() -> &'static str {
+        if is_chinese() {
+            "解决 MCP Live 漂移"
+        } else {
+            "Resolve MCP Live Drift"
+        }
+    }
+
+    pub fn tui_mcp_live_drift_import_live() -> &'static str {
+        if is_chinese() {
+            "从 live 导入到 cc-switch"
+        } else {
+            "Import live into cc-switch"
+        }
+    }
+
+    pub fn tui_mcp_live_drift_push_db() -> &'static str {
+        if is_chinese() {
+            "用 cc-switch 覆盖 live"
+        } else {
+            "Push cc-switch to live"
+        }
+    }
+
+    pub fn tui_mcp_live_drift_cancel() -> &'static str {
+        if is_chinese() {
+            "暂不处理"
+        } else {
+            "Cancel"
+        }
+    }
+
+    pub fn tui_mcp_live_drift_status(kind: &crate::services::McpLiveDriftKind) -> &'static str {
+        match kind {
+            crate::services::McpLiveDriftKind::Changed => {
+                if is_chinese() {
+                    "live changed"
+                } else {
+                    "live changed"
+                }
+            }
+            crate::services::McpLiveDriftKind::LiveOnly => {
+                if is_chinese() {
+                    "live only"
+                } else {
+                    "live only"
+                }
+            }
+            crate::services::McpLiveDriftKind::DbOnly => {
+                if is_chinese() {
+                    "missing live"
+                } else {
+                    "missing live"
+                }
+            }
+            crate::services::McpLiveDriftKind::LiveInvalid => {
+                if is_chinese() {
+                    "live invalid"
+                } else {
+                    "live invalid"
+                }
+            }
+            _ => {
+                if is_chinese() {
+                    "in sync"
+                } else {
+                    "in sync"
+                }
+            }
         }
     }
 
@@ -5545,6 +5672,22 @@ pub mod texts {
             format!("已导入 {count} 个 MCP 服务器。")
         } else {
             format!("Imported {count} MCP server(s).")
+        }
+    }
+
+    pub fn tui_toast_mcp_live_imported() -> &'static str {
+        if is_chinese() {
+            "已从 live 导入 MCP 服务器。"
+        } else {
+            "Imported MCP server from live config."
+        }
+    }
+
+    pub fn tui_toast_mcp_live_pushed() -> &'static str {
+        if is_chinese() {
+            "已用 cc-switch MCP 配置覆盖 live。"
+        } else {
+            "Pushed cc-switch MCP server to live config."
         }
     }
 

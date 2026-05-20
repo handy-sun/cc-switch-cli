@@ -987,18 +987,50 @@ pub(crate) fn provider_test_menu_item_label(item: ProviderTestMenuItem) -> &'sta
 pub(crate) fn visible_mcp<'a>(
     filter: &FilterState,
     data: &'a UiData,
-) -> Vec<&'a super::data::McpRow> {
+) -> Vec<super::data::McpDisplayRow<'a>> {
     let query = filter.query_lower();
     data.mcp
-        .rows
-        .iter()
+        .display_rows()
+        .into_iter()
         .filter(|row| match &query {
             None => true,
-            Some(q) => {
-                row.server.name.to_lowercase().contains(q) || row.id.to_lowercase().contains(q)
-            }
+            Some(q) => row.name().to_lowercase().contains(q) || row.id().to_lowercase().contains(q),
         })
         .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum McpLiveDriftResolveChoice {
+    ImportLive,
+    PushDbToLive,
+    Cancel,
+}
+
+pub(crate) fn mcp_live_drift_resolve_choices(
+    kind: &crate::services::McpLiveDriftKind,
+) -> Vec<McpLiveDriftResolveChoice> {
+    match kind {
+        crate::services::McpLiveDriftKind::LiveOnly => {
+            vec![
+                McpLiveDriftResolveChoice::ImportLive,
+                McpLiveDriftResolveChoice::Cancel,
+            ]
+        }
+        crate::services::McpLiveDriftKind::DbOnly => {
+            vec![
+                McpLiveDriftResolveChoice::PushDbToLive,
+                McpLiveDriftResolveChoice::Cancel,
+            ]
+        }
+        crate::services::McpLiveDriftKind::Changed => {
+            vec![
+                McpLiveDriftResolveChoice::ImportLive,
+                McpLiveDriftResolveChoice::PushDbToLive,
+                McpLiveDriftResolveChoice::Cancel,
+            ]
+        }
+        _ => vec![McpLiveDriftResolveChoice::Cancel],
+    }
 }
 
 pub(crate) fn visible_prompts<'a>(

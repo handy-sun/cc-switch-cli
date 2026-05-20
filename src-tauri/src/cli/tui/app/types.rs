@@ -223,6 +223,12 @@ pub enum Overlay {
         selected: usize,
         apps: crate::app_config::McpApps,
     },
+    McpLiveDriftResolve {
+        app_type: AppType,
+        id: String,
+        kind: crate::services::McpLiveDriftKind,
+        selected: usize,
+    },
     VisibleAppsPicker {
         selected: usize,
         apps: crate::settings::VisibleApps,

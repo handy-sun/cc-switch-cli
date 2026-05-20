@@ -310,11 +310,17 @@ impl App {
                 let Some(row) = visible.get(self.mcp_idx) else {
                     return Action::None;
                 };
+                let Some(row) = row.db_row() else {
+                    return Action::None;
+                };
                 self.open_mcp_edit_form(row);
                 Action::None
             }
             KeyCode::Char('x') => {
                 let Some(row) = visible.get(self.mcp_idx) else {
+                    return Action::None;
+                };
+                let Some(row) = row.db_row() else {
                     return Action::None;
                 };
                 let enabled = row.server.apps.is_enabled_for(&self.app_type);
@@ -327,6 +333,9 @@ impl App {
                 let Some(row) = visible.get(self.mcp_idx) else {
                     return Action::None;
                 };
+                let Some(row) = row.db_row() else {
+                    return Action::None;
+                };
                 self.overlay = Overlay::McpAppsPicker {
                     id: row.id.clone(),
                     name: row.server.name.clone(),
@@ -336,8 +345,34 @@ impl App {
                 Action::None
             }
             KeyCode::Char('i') => Action::McpImport,
+            KeyCode::Char('r') => {
+                let Some(row) = visible.get(self.mcp_idx) else {
+                    return Action::None;
+                };
+                let Some(kind) = row.drift_kind(&data.mcp).cloned() else {
+                    return Action::None;
+                };
+                if !matches!(
+                    kind,
+                    crate::services::McpLiveDriftKind::Changed
+                        | crate::services::McpLiveDriftKind::DbOnly
+                        | crate::services::McpLiveDriftKind::LiveOnly
+                ) {
+                    return Action::None;
+                }
+                self.overlay = Overlay::McpLiveDriftResolve {
+                    app_type: self.app_type.clone(),
+                    id: row.id().to_string(),
+                    kind,
+                    selected: 0,
+                };
+                Action::None
+            }
             KeyCode::Char('d') => {
                 let Some(row) = visible.get(self.mcp_idx) else {
+                    return Action::None;
+                };
+                let Some(row) = row.db_row() else {
                     return Action::None;
                 };
                 self.overlay = Overlay::Confirm(ConfirmOverlay {

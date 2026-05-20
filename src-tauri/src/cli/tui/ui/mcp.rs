@@ -1,15 +1,13 @@
 use super::*;
 
-pub(super) fn mcp_rows_filtered<'a>(app: &App, data: &'a UiData) -> Vec<&'a McpRow> {
+pub(super) fn mcp_rows_filtered<'a>(app: &App, data: &'a UiData) -> Vec<McpDisplayRow<'a>> {
     let query = app.filter.query_lower();
     data.mcp
-        .rows
-        .iter()
+        .display_rows()
+        .into_iter()
         .filter(|row| match &query {
             None => true,
-            Some(q) => {
-                row.server.name.to_lowercase().contains(q) || row.id.to_lowercase().contains(q)
-            }
+            Some(q) => row.name().to_lowercase().contains(q) || row.id().to_lowercase().contains(q),
         })
         .collect()
 }
@@ -25,6 +23,7 @@ pub(super) fn render_mcp(
 
     let header = Row::new(vec![
         Cell::from(texts::header_name()),
+        centered_cell(texts::tui_mcp_live_header()),
         centered_cell("Claude"),
         centered_cell("Codex"),
         centered_cell("Gemini"),
@@ -35,34 +34,40 @@ pub(super) fn render_mcp(
     .style(Style::default().fg(theme.dim).add_modifier(Modifier::BOLD));
 
     let rows = visible.iter().map(|row| {
+        let live_marker = mcp_live_marker(row.drift_kind(&data.mcp));
+        let name = row
+            .live_spec_summary()
+            .map(|summary| format!("{} {}", row.name(), summary))
+            .unwrap_or_else(|| row.name().to_string());
         Row::new(vec![
-            Cell::from(row.server.name.clone()),
-            centered_cell(if row.server.apps.claude {
+            Cell::from(name),
+            centered_cell(live_marker),
+            centered_cell(if row.app_enabled(&AppType::Claude) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
             }),
-            centered_cell(if row.server.apps.codex {
+            centered_cell(if row.app_enabled(&AppType::Codex) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
             }),
-            centered_cell(if row.server.apps.gemini {
+            centered_cell(if row.app_enabled(&AppType::Gemini) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
             }),
-            centered_cell(if row.server.apps.opencode {
+            centered_cell(if row.app_enabled(&AppType::OpenCode) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
             }),
-            centered_cell(if row.server.apps.openclaw {
+            centered_cell(if row.app_enabled(&AppType::OpenClaw) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
             }),
-            centered_cell(if row.server.apps.hermes {
+            centered_cell(if row.app_enabled(&AppType::Hermes) {
                 texts::tui_marker_active()
             } else {
                 texts::tui_marker_inactive()
@@ -98,12 +103,13 @@ pub(super) fn render_mcp(
                 ("a", texts::tui_key_add()),
                 ("e", texts::tui_key_edit()),
                 ("i", texts::tui_mcp_action_import_existing()),
+                ("r", texts::tui_key_resolve()),
                 ("d", texts::tui_key_delete()),
             ],
         );
     }
 
-    let summary = texts::tui_mcp_server_counts(
+    let mut summary = texts::tui_mcp_server_counts(
         data.mcp
             .rows
             .iter()
@@ -135,12 +141,25 @@ pub(super) fn render_mcp(
             .filter(|row| row.server.apps.hermes)
             .count(),
     );
+    let drift_counts = data.mcp.live_drift_counts();
+    if drift_counts.has_drift() {
+        summary = format!(
+            "{} · {summary}",
+            texts::tui_mcp_live_drift_summary(
+                drift_counts.changed,
+                drift_counts.live_only,
+                drift_counts.db_only,
+                drift_counts.invalid,
+            )
+        );
+    }
     render_summary_bar(frame, chunks[1], theme, summary);
 
     let table = Table::new(
         rows,
         [
-            Constraint::Percentage(40),
+            Constraint::Percentage(34),
+            Constraint::Length(6),
             Constraint::Length(8),
             Constraint::Length(8),
             Constraint::Length(8),
@@ -162,4 +181,14 @@ pub(super) fn render_mcp(
 
 fn centered_cell(text: impl Into<String>) -> Cell<'static> {
     Cell::from(Line::from(text.into()).alignment(Alignment::Center))
+}
+
+fn mcp_live_marker(kind: Option<&crate::services::McpLiveDriftKind>) -> &'static str {
+    match kind {
+        Some(crate::services::McpLiveDriftKind::Changed) => "~",
+        Some(crate::services::McpLiveDriftKind::LiveOnly) => "+",
+        Some(crate::services::McpLiveDriftKind::DbOnly) => "-",
+        Some(crate::services::McpLiveDriftKind::LiveInvalid) => "!",
+        _ => "",
+    }
 }

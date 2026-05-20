@@ -102,3 +102,29 @@ pub(super) fn delete(ctx: &mut RuntimeActionContext<'_>, id: String) -> Result<(
 pub(super) fn import_current_app(ctx: &mut RuntimeActionContext<'_>) -> Result<(), AppError> {
     import_mcp_for_current_app(ctx.app, ctx.data)
 }
+
+pub(super) fn import_live(
+    ctx: &mut RuntimeActionContext<'_>,
+    app_type: AppType,
+    id: String,
+) -> Result<(), AppError> {
+    let state = load_state()?;
+    McpService::import_live_server(&state, app_type, &id)?;
+    ctx.app
+        .push_toast(texts::tui_toast_mcp_live_imported(), ToastKind::Success);
+    *ctx.data = UiData::load(&ctx.app.app_type)?;
+    Ok(())
+}
+
+pub(super) fn push_db_to_live(
+    ctx: &mut RuntimeActionContext<'_>,
+    app_type: AppType,
+    id: String,
+) -> Result<(), AppError> {
+    let state = load_state()?;
+    McpService::push_db_server_to_live(&state, app_type, &id)?;
+    ctx.app
+        .push_toast(texts::tui_toast_mcp_live_pushed(), ToastKind::Success);
+    *ctx.data = UiData::load(&ctx.app.app_type)?;
+    Ok(())
+}
