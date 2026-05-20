@@ -1,0 +1,75 @@
+# 上游提交吸收记录
+
+本文件长期记录本仓库从上游 `SaladDay/cc-switch-cli` 吸收过的提交。
+
+本仓库的同步方向是：只从上游仓库合入到本仓库，不把本仓库的 fork 改动回推到上游。
+
+## 记录规则
+
+- **精确合入**：上游 commit hash 是当前分支祖先，或 patch-id 与本仓库提交等价。
+- **语义吸收**：没有保留上游原 hash，也不是干净 cherry-pick，但本仓库提交明确吸收了该上游功能。
+- **部分覆盖**：本仓库用独立提交实现了相近能力。该状态不等于已合入上游提交，后续继续合上游时需要人工对照。
+- 记录时优先写清楚上游 commit、本仓库吸收 commit、吸收状态、范围说明和注意事项。
+
+## 2026-05-20 快照
+
+- 上游：`SaladDay/cc-switch-cli main`
+- 上游 ref：`saladday/main` at `26360ae3`
+- 本仓库分支：`fit/merge-forked`
+- 本仓库 HEAD：`f1d3a3ab`
+- 核查结论：当时上游新增的 32 个非 merge 提交中，没有任何一个以原 hash 精确合入；已经使用的功能主要由本仓库聚合同步提交 `ab169b4a` 语义吸收。
+
+### 已语义吸收
+
+| 上游提交 | 上游标题 | 本仓库提交 | 状态 | 范围说明 |
+| --- | --- | --- | --- | --- |
+| `af3b291f` | `feat(cli): add failover management commands (#165)` | `ab169b4a` | 语义吸收 | 新增 CLI 故障转移管理命令，包括查看、启用、禁用、队列增删、排序和清空。当前代码保留在 `src-tauri/src/cli/commands/failover.rs`。 |
+| `397741c5` | `(fix) improve DeepSeek model and reasoning compatibility` | `ab169b4a` | 语义吸收 | 吸收 DeepSeek / reasoning 兼容逻辑，包括 OpenAI chat transform、streaming `reasoning_content` alias、模型列表候选 URL 处理等。 |
+| `e7725913` | `feat(tui): add readline text editing shortcuts` | `ab169b4a` | 语义吸收 | 吸收 TUI 文本编辑快捷键，包含 `Ctrl+A/E/U/K/W`、`Alt+B/F` 等；当前核心实现为 `src-tauri/src/cli/tui/text_edit.rs`。 |
+| `92ab4425` | `fix(database): improve future schema error` | `ab169b4a` | 语义吸收 | 吸收数据库 future schema 检查和错误提示改进，避免新版本数据库被旧程序继续迁移。 |
+| `f80a0695` | `Refine provider TUI actions` | `ab169b4a` | 语义吸收 | 吸收供应商页动作区、详情、快捷键和导入当前配置相关体验调整，并在本仓库内适配 Hermes / OpenClaw 等 fork 扩展。 |
+| `0c6f9a65` | `Add provider empty state` | `ab169b4a` | 语义吸收 | 吸收供应商空状态，包括无供应商时的导入当前配置和添加供应商入口。后续本仓库提交 `49a0a921` 又针对 Codex 空状态做了本地扩展。 |
+| `5c6d373f` | `Fix broken internal documentation links (#167)` | 当前工作区 | 语义吸收 | 手工吸收内部文档链接修复：将不存在的 `CLAUDE.md` 链接改为 README 链接，并修正 v3.6.0 / v3.6.1 中文 release note 指向同目录英文版本。 |
+| `d36070bf` | `(tui)refine footer shortcuts` | 当前工作区 | 语义吸收 | 合入 TUI footer 快捷键压缩展示，移除 `NAV` / `ACT` 标签并优先展示 proxy 开关入口，改善窄中文终端可见性。 |
+| `371f4222` | `(prompt)stabilize prompt list order` | 当前工作区 | 语义吸收 | 合入 prompt 列表稳定排序：按 `created_at` 正序并用 id 兜底，避免仅因 `updated_at` 变化导致列表跳动。 |
+
+### 部分覆盖但未合入原上游提交
+
+| 上游提交 | 上游标题 | 本仓库相关提交 | 状态 | 注意事项 |
+| --- | --- | --- | --- | --- |
+| `d3c240c5` | `feat: add CODEX_HOME support (#179)` | `3c46a327` | 部分覆盖 | 上游原提交未合入；本仓库独立实现了 Codex MCP live sync 对 `CODEX_HOME` 的支持。后续合上游时应避免重复覆盖路径解析逻辑。 |
+| `83307151` | `Improve failover proxy UX` | `c0f5cb52`, `f1d3a3ab` | 部分覆盖 | 本仓库已有早期故障转移控制和 proxy inactive guard 修复，但没有完整吸收上游新增的 `failover_policy.rs`、自动开启 proxy+failover、停 proxy 清理 failover 等整套 UX。 |
+| `65c4dc75` 到 `d160b168` | provider common config 系列重构 | `0f510eb6`, `c4409be5` 等 | 部分覆盖 | 本仓库已有更早的 common config 体系；2026-05-15 上游 common config 重构系列未作为提交合入。继续合上游时需要逐项对照语义。 |
+
+### 本轮明确暂不处理
+
+| 上游提交 | 上游标题 | 状态 | 原因 |
+| --- | --- | --- | --- |
+| `64cbca79` | `(docs) update RightCode rebate to 5%` | 暂不合入 | 该提交仅调整 RightCode 赞助/返利文案，从 25% 改为 5%，不涉及功能或兼容性；本 fork 是否沿用上游营销信息需要另行确认，本轮按指令跳过。 |
+| `d3c240c5` | `feat: add CODEX_HOME support (#179)` | 暂不合入 | 本仓库已通过 `3c46a327` 部分覆盖 CODEX_HOME live sync 支持，且当前实现有意采用 `CODEX_HOME` 优先于手动覆盖、支持 `~` 展开、且不要求目录预先存在；上游提交的优先级和存在性判断不同，直接合入会改变现有行为。 |
+
+### 尚未吸收的上游新增提交
+
+以下提交截至本快照未发现精确合入或明确语义吸收记录：
+
+`fc3b95d1`, `83307151`, `253ce370`, `e3ff1689`, `6ff4f888`, `8afd9075`, `d3810be2`, `50fcb8cd`, `3fa27235`, `564558a2`, `4a292849`, `65c4dc75`, `ee155e69`, `a5914cdd`, `fa96c245`, `8e311ee4`, `d160b168`, `73b7c3c1`, `a1dd240a`, `14856f68`, `26360ae3`。
+
+补充说明：`83307151`、`65c4dc75` 到 `d160b168`、`d3c240c5` 在上方标为“部分覆盖”，表示本仓库存在相关能力，但不视为已合入这些上游提交；`64cbca79`、`d3c240c5` 在本轮明确暂不处理。
+
+## 维护方法
+
+新增记录前建议执行：
+
+```bash
+git fetch --no-tags https://github.com/SaladDay/cc-switch-cli.git main
+git update-ref refs/remotes/saladday/main FETCH_HEAD
+git cherry -v HEAD saladday/main
+git log --reverse --no-merges --date=short --format='%h %ad %s' $(git merge-base HEAD saladday/main)..saladday/main
+```
+
+判断某个上游提交是否已被吸收时，按以下顺序核查：
+
+1. `git merge-base --is-ancestor <upstream-commit> HEAD`，确认是否精确合入。
+2. `git cherry -v HEAD saladday/main`，确认是否有 patch-id 等价 cherry-pick。
+3. `git log --all -S '<关键符号或文案>'`，确认是否由本仓库提交语义吸收。
+4. 对照相关文件的当前实现，区分“已吸收”和“部分覆盖”。
