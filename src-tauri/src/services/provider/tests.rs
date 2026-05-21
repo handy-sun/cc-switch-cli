@@ -1131,6 +1131,8 @@ fn hermes_switch_updates_live_model_provider_and_default() {
 model:
   provider: old-provider
   default: old-model
+  base_url: https://old.example.com/v1
+  api_key: sk-old
 custom_providers: []
 "#,
     )
@@ -1147,8 +1149,8 @@ custom_providers: []
             "p2".to_string(),
             "Hermes Provider".to_string(),
             json!({
-                "base_url": "https://hermes.example.com/v1",
-                "api_key": "sk-hermes",
+                "baseUrl": "https://hermes.example.com/v1",
+                "apiKey": "sk-hermes",
                 "models": [
                     { "id": "new-model" }
                 ]
@@ -1165,12 +1167,22 @@ custom_providers: []
         .expect("Hermes model config should exist");
     assert_eq!(model.provider.as_deref(), Some("p2"));
     assert_eq!(model.default.as_deref(), Some("new-model"));
-    assert!(
-        crate::hermes_config::get_provider("p2")
-            .expect("read switched Hermes provider")
-            .is_some(),
-        "switch should still add/update the provider in live config"
+    assert_eq!(
+        model.base_url.as_deref(),
+        Some("https://hermes.example.com/v1")
     );
+    assert_eq!(
+        model.extra.get("api_key").and_then(|value| value.as_str()),
+        Some("sk-hermes")
+    );
+
+    let provider = crate::hermes_config::get_provider("p2")
+        .expect("read switched Hermes provider")
+        .expect("switch should still add/update the provider in live config");
+    assert_eq!(provider["base_url"], "https://hermes.example.com/v1");
+    assert_eq!(provider["api_key"], "sk-hermes");
+    assert!(provider.get("baseUrl").is_none());
+    assert!(provider.get("apiKey").is_none());
 }
 
 #[test]

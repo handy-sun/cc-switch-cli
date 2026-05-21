@@ -788,6 +788,20 @@ pub fn set_model_config(model: &HermesModelConfig) -> Result<HermesWriteOutcome,
     write_yaml_section_to_config("model", &yaml_val)
 }
 
+fn provider_alias_string(
+    settings_config: &serde_json::Value,
+    primary_key: &str,
+    alias_key: &str,
+) -> Option<String> {
+    settings_config
+        .get(primary_key)
+        .or_else(|| settings_config.get(alias_key))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 /// Apply the top-level `model:` defaults when switching to a Hermes provider.
 ///
 /// `model.provider` is **always** updated to the new provider id — without
@@ -799,8 +813,11 @@ pub fn set_model_config(model: &HermesModelConfig) -> Result<HermesWriteOutcome,
 /// still have a runnable configuration (Hermes will surface a clear error
 /// if the default no longer belongs to the active provider).
 ///
-/// Existing fields in `model:` (`context_length` / `max_tokens` / `base_url`
-/// / `extra`) are preserved via struct-update.
+/// Existing model tuning fields (`context_length` / `max_tokens` / unknown
+/// `extra`) are preserved via struct-update, but provider credentials are
+/// replaced from the newly selected provider. Missing credentials clear the
+/// previous provider's values so the top-level model config cannot leak an old
+/// `base_url` / `api_key` across switches.
 pub fn apply_switch_defaults(
     provider_id: &str,
     settings_config: &serde_json::Value,
@@ -814,7 +831,22 @@ pub fn apply_switch_defaults(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
 
-    let current = get_model_config()?.unwrap_or_default();
+    let new_base_url = provider_alias_string(settings_config, "base_url", "baseUrl");
+    let new_api_key = provider_alias_string(settings_config, "api_key", "apiKey");
+
+    let mut current = get_model_config()?.unwrap_or_default();
+
+    current.base_url = new_base_url;
+    current.extra.remove("baseUrl");
+    current.extra.remove("apiKey");
+    if let Some(key) = new_api_key {
+        current
+            .extra
+            .insert("api_key".to_string(), serde_json::Value::String(key));
+    } else {
+        current.extra.remove("api_key");
+    }
+
     let merged = HermesModelConfig {
         default: first_model_id.or(current.default.clone()),
         provider: Some(provider_id.to_string()),
@@ -1728,7 +1760,71 @@ custom_providers:
 
     #[test]
     #[serial]
-    fn apply_switch_defaults_preserves_user_context_length() {
+    fn apply_switch_defaults_accepts_camel_case_provider_credentials() {
+        with_test_home(|| {
+            let mut extra = HashMap::new();
+            extra.insert("api_key".to_string(), serde_json::json!("sk-old"));
+            let initial = HermesModelConfig {
+                default: Some("old-model".to_string()),
+                provider: Some("old-provider".to_string()),
+                base_url: Some("https://old.example.com/v1".to_string()),
+                extra,
+                ..Default::default()
+            };
+            set_model_config(&initial).unwrap();
+
+            let settings = serde_json::json!({
+                "baseUrl": "https://new.example.com/v1",
+                "apiKey": "sk-new",
+                "models": [{ "id": "new-model" }]
+            });
+            apply_switch_defaults("new-provider", &settings).unwrap();
+
+            let model = get_model_config().unwrap().unwrap();
+            assert_eq!(model.default.as_deref(), Some("new-model"));
+            assert_eq!(model.provider.as_deref(), Some("new-provider"));
+            assert_eq!(
+                model.base_url.as_deref(),
+                Some("https://new.example.com/v1")
+            );
+            assert_eq!(
+                model.extra.get("api_key").and_then(|value| value.as_str()),
+                Some("sk-new")
+            );
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn apply_switch_defaults_clears_stale_provider_credentials_when_missing() {
+        with_test_home(|| {
+            let mut extra = HashMap::new();
+            extra.insert("api_key".to_string(), serde_json::json!("sk-old"));
+            let initial = HermesModelConfig {
+                default: Some("old-model".to_string()),
+                provider: Some("old-provider".to_string()),
+                base_url: Some("https://old.example.com/v1".to_string()),
+                extra,
+                ..Default::default()
+            };
+            set_model_config(&initial).unwrap();
+
+            let settings = serde_json::json!({
+                "models": [{ "id": "new-model" }]
+            });
+            apply_switch_defaults("new-provider", &settings).unwrap();
+
+            let model = get_model_config().unwrap().unwrap();
+            assert_eq!(model.default.as_deref(), Some("new-model"));
+            assert_eq!(model.provider.as_deref(), Some("new-provider"));
+            assert!(model.base_url.is_none());
+            assert!(model.extra.get("api_key").is_none());
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn apply_switch_defaults_preserves_user_model_tuning() {
         with_test_home(|| {
             // User previously set a custom context_length via the Model panel.
             let initial = HermesModelConfig {
@@ -1749,11 +1845,9 @@ custom_providers:
             let model = get_model_config().unwrap().unwrap();
             assert_eq!(model.default.as_deref(), Some("new-model"));
             assert_eq!(model.provider.as_deref(), Some("new-provider"));
-            // User-customized fields must survive the switch.
-            assert_eq!(
-                model.base_url.as_deref(),
-                Some("https://user-override.example.com")
-            );
+            // Model tuning survives; provider credentials are replaced/cleared
+            // by the active provider so old routes do not leak across switches.
+            assert!(model.base_url.is_none());
             assert_eq!(model.context_length, Some(131072));
             assert_eq!(model.max_tokens, Some(16384));
         });
